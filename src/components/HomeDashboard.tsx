@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Sun, 
@@ -12,16 +13,82 @@ import {
   Info, 
   ChevronRight 
 } from 'lucide-react';
+import type { AuthUser, DashboardQuickAction, DashboardStats } from '../types';
+import { getDashboardQuickActions, getDashboardStats } from '../lib/api';
 
-export const HomeDashboard = () => {
+interface HomeDashboardProps {
+  currentUser: AuthUser | null;
+}
+
+const DEFAULT_STATS: DashboardStats = {
+  totalTripsToday: 48,
+  activeDispatches: 5,
+  availableUnits: { current: 7, total: 12 },
+  totalRevenueToday: 4820.5,
+};
+
+const DEFAULT_ACTIONS: DashboardQuickAction[] = [
+  { id: 'new-trip', label: 'New Dispatch Request' },
+  { id: 'fleet-map', label: 'Register New Vehicle' },
+  { id: 'assign-pending', label: 'Generate Daily Report' },
+];
+
+export const HomeDashboard = ({ currentUser }: HomeDashboardProps) => {
   const { t } = useTranslation();
+  const [stats, setStats] = useState<DashboardStats>(DEFAULT_STATS);
+  const [quickActions, setQuickActions] = useState<DashboardQuickAction[]>(DEFAULT_ACTIONS);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const formattedRevenue = useMemo(
+    () =>
+      stats.totalRevenueToday.toLocaleString(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+      }),
+    [stats.totalRevenueToday],
+  );
+
+  const greetingName = useMemo(() => {
+    if (!currentUser?.full_name) {
+      return 'Alex';
+    }
+    return currentUser.full_name.split(' ')[0];
+  }, [currentUser]);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([getDashboardStats(), getDashboardQuickActions()])
+      .then(([statsResponse, actionsResponse]) => {
+        if (!mounted) {
+          return;
+        }
+        setStats(statsResponse);
+        setQuickActions(actionsResponse.length > 0 ? actionsResponse : DEFAULT_ACTIONS);
+      })
+      .catch((error) => {
+        if (!mounted) {
+          return;
+        }
+        setLoadError(error instanceof Error ? error.message : 'Failed to load dashboard data');
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const firstAction = quickActions[0]?.label || DEFAULT_ACTIONS[0].label;
+  const secondAction = quickActions[1]?.label || DEFAULT_ACTIONS[1].label;
+  const thirdAction = quickActions[2]?.label || DEFAULT_ACTIONS[2].label;
+
   return (
     <main className="h-full overflow-y-auto p-6 md:p-8 bg-background">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Welcome Message */}
         <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-4xl font-serif italic text-primary font-bold">{t('home.greeting', 'Good Morning, Alex')}</h2>
+            <h2 className="text-4xl font-serif italic text-primary font-bold">{t('home.greeting', `Good Morning, ${greetingName}`)}</h2>
             <p className="text-on-surface-variant mt-2 max-w-lg">
               {t('operations_are_running_smoothly_today__a', 'Operations are running smoothly today. All priority routes are currently clear, and 7 units are ready for immediate dispatch.')}
             </p>
@@ -42,7 +109,7 @@ export const HomeDashboard = () => {
               <span className="text-[10px] font-bold text-primary bg-primary-fixed px-2 py-1 rounded-full">{t('12__vs_yesterday', '+12% vs yesterday')}</span>
             </div>
             <p className="text-on-surface-variant text-sm font-bold uppercase tracking-wider">{t('total_trips_today', 'Total Trips Today')}</p>
-            <h3 className="text-3xl font-serif font-bold text-on-background mt-1">48</h3>
+            <h3 className="text-3xl font-serif font-bold text-on-background mt-1">{stats.totalTripsToday}</h3>
           </div>
 
           <div className="bg-surface p-6 rounded-xl shadow-sm border border-outline-variant/20">
@@ -55,7 +122,7 @@ export const HomeDashboard = () => {
               </span>
             </div>
             <p className="text-on-surface-variant text-sm font-bold uppercase tracking-wider">{t('home.activeDispatches', 'Active Dispatches')}</p>
-            <h3 className="text-3xl font-serif font-bold text-on-background mt-1">5</h3>
+            <h3 className="text-3xl font-serif font-bold text-on-background mt-1">{stats.activeDispatches}</h3>
           </div>
 
           <div className="bg-surface p-6 rounded-xl shadow-sm border border-outline-variant/20">
@@ -66,8 +133,8 @@ export const HomeDashboard = () => {
             </div>
             <p className="text-on-surface-variant text-sm font-bold uppercase tracking-wider">{t('home.availableUnits', 'Available Units')}</p>
             <div className="flex items-baseline gap-2 mt-1">
-              <h3 className="text-3xl font-serif font-bold text-on-background">7</h3>
-              <span className="text-outline font-medium">{t('12_total', '/ 12 total')}</span>
+              <h3 className="text-3xl font-serif font-bold text-on-background">{stats.availableUnits.current}</h3>
+              <span className="text-outline font-medium">/ {stats.availableUnits.total} total</span>
             </div>
           </div>
 
@@ -78,9 +145,15 @@ export const HomeDashboard = () => {
               </div>
             </div>
             <p className="text-on-surface-variant text-sm font-bold uppercase tracking-wider">{t('home.totalRevenue', 'Total Revenue Today')}</p>
-            <h3 className="text-3xl font-serif font-bold text-on-background mt-1">$4,820.50</h3>
+            <h3 className="text-3xl font-serif font-bold text-on-background mt-1">{formattedRevenue}</h3>
           </div>
         </section>
+
+        {loadError ? (
+          <section className="rounded-xl border border-amber-300/70 bg-amber-100/70 px-4 py-3 text-sm text-amber-900">
+            {loadError}
+          </section>
+        ) : null}
 
         {/* Main Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -92,19 +165,19 @@ export const HomeDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button className="flex flex-col items-start p-6 bg-primary text-on-primary rounded-xl hover:opacity-95 transition-all text-left group">
                   <PlusSquare className="w-8 h-8 mb-4 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-lg leading-tight">{t('new_dispatch_request', 'New Dispatch Request')}</span>
+                  <span className="font-bold text-lg leading-tight">{firstAction}</span>
                   <span className="text-primary-fixed text-xs mt-1 opacity-80">{t('process_a_new_incoming_tow_call', 'Process a new incoming tow call')}</span>
                 </button>
 
                 <button className="flex flex-col items-start p-6 bg-surface border border-outline-variant/30 rounded-xl hover:bg-surface-container-low transition-all text-left group">
                   <ClipboardList className="w-8 h-8 text-primary mb-4 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-lg text-on-background leading-tight">{t('register_new_vehicle', 'Register New Vehicle')}</span>
+                  <span className="font-bold text-lg text-on-background leading-tight">{secondAction}</span>
                   <span className="text-on-surface-variant text-xs mt-1">{t('add_a_unit_to_the_fleet_registry', 'Add a unit to the fleet registry')}</span>
                 </button>
 
                 <button className="flex flex-col items-start p-6 bg-surface border border-outline-variant/30 rounded-xl hover:bg-surface-container-low transition-all text-left group">
                   <FileText className="w-8 h-8 text-tertiary mb-4 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-lg text-on-background leading-tight">{t('generate_daily_report', 'Generate Daily Report')}</span>
+                  <span className="font-bold text-lg text-on-background leading-tight">{thirdAction}</span>
                   <span className="text-on-surface-variant text-xs mt-1">{t('export_today_s_logs_and_billing', "Export today's logs and billing")}</span>
                 </button>
               </div>

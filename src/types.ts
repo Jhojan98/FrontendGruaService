@@ -37,3 +37,40 @@ export interface DispatchFormData {
   vehicleColorPlate: string;
   occupants: number;
 }
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+}
+
+export interface DashboardStats {
+  totalTripsToday: number;
+  activeDispatches: number;
+  availableUnits: {
+    current: number;
+    total: number;
+  };
+  totalRevenueToday: number;
+}
+
+export interface DashboardQuickAction {
+  id: string;
+  label: string;
+}
+
+export interface FleetTruck {
+  id: string;
+  unitNumber: string;
+  type: string;
+  status: string;
+}
+
+export interface CreateTripPayload {
+  clientId: string;
+  clientName?: string;
+  originAddress: string;
+  destinationAddress: string;
+  distance?: string;
+}

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Moon, Sun } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (email: string, password: string) => Promise<string | null>;
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean) => void;
 }
@@ -12,10 +12,18 @@ export function Login({ onLogin, isDarkMode, setIsDarkMode }: LoginProps) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    const error = await onLogin(email.trim(), password);
+    if (error) {
+      setErrorMessage(error);
+    }
+    setIsSubmitting(false);
   };
 
   return (
@@ -40,6 +48,12 @@ export function Login({ onLogin, isDarkMode, setIsDarkMode }: LoginProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5" style={{ fontFamily: '"Nunito Sans", sans-serif' }}>
+          {errorMessage ? (
+            <div className="rounded-lg border border-red-300/60 bg-red-100/70 px-3 py-2 text-sm text-red-800">
+              {errorMessage}
+            </div>
+          ) : null}
+
           <div>
             <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-[#e4e0d8]' : 'text-[#2e3230]'}`}>
               {t('login.email')}
@@ -86,9 +100,10 @@ export function Login({ onLogin, isDarkMode, setIsDarkMode }: LoginProps) {
 
           <button
             type="submit"
+            disabled={isSubmitting}
             className="w-full py-3 px-4 bg-[#4a7c59] hover:bg-[#3b6649] text-white rounded-xl font-medium transition-colors duration-200 mt-6 shadow-md shadow-[#4a7c59]/20"
           >
-             {t('login.signIn')}
+             {isSubmitting ? t('loading', 'Loading...') : t('login.signIn')}
           </button>
         </form>
 

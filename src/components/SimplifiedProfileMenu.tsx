@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogOut, User, Settings as SettingsIcon } from 'lucide-react';
+import type { AuthUser } from '../types';
 
 export function SimplifiedProfileMenu({
   onLogout,
-  onViewChange
+  onViewChange,
+  currentUser,
 }: {
   onLogout?: () => void;
   onViewChange?: (view: string) => void;
+  currentUser?: AuthUser | null;
 }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
@@ -42,8 +45,8 @@ export function SimplifiedProfileMenu({
       {isOpen && (
         <div className="absolute right-0 mt-2 w-56 rounded-xl bg-surface shadow-lg border border-outline-variant/30 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="px-4 py-3 border-b border-outline-variant/30">
-            <p className="text-sm font-bold text-on-surface font-headline">{t('alex_dispatcher', 'Alex Dispatcher')}</p>
-            <p className="text-xs text-on-surface-variant font-medium mt-0.5">{t('alex_d_terratowing_com', 'alex.d@terratowing.com')}</p>
+            <p className="text-sm font-bold text-on-surface font-headline">{currentUser?.full_name || t('alex_dispatcher', 'Alex Dispatcher')}</p>
+            <p className="text-xs text-on-surface-variant font-medium mt-0.5">{currentUser?.email || t('alex_d_terratowing_com', 'alex.d@terratowing.com')}</p>
           </div>
           
           <div className="py-1">
