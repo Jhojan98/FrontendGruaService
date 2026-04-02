@@ -13,7 +13,7 @@ export const MapSection = () => {
       {/* Simulated Map Background */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-90" 
-        style={{ backgroundImage: "url('https://picsum.photos/seed/portland-map/1200/1200')" }}
+        style={{ backgroundImage: "url('https://caracol.com.co/resizer/v2/WPROCFWKYNMRXMV6UIQBSJLRBQ.jpg?auth=129d5e77773be2872133c8a6869bc9cad45928e3b007272bda1d4c8aa1144975&quality=70&width=768&height=432&smart=true')" }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-surface/20 to-transparent"></div>
       </div>
