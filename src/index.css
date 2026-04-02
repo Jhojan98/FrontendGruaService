@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600;7..72,700&family=Nunito+Sans:wght@400;600;700;800&family=Newsreader:wght@400;500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-tertiary: var(--tertiary);
+  --color-error: var(--error);
+  --color-on-background: var(--on-background);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-on-primary: var(--on-primary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-on-error: var(--on-error);
+  --color-outline-variant: var(--outline-variant);
+
+  --font-headline: var(--font-headline-family);
+  --font-body: var(--font-body-family);
+
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}
+
+@layer base {
+  :root {
+    --primary: #4a7c59;
+    --primary-hover: #3a6347;
+    --background: #faf6f0;
+    --surface: #ffffff;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #f5f1ea;
+    --surface-container: #f0ece4;
+    --surface-container-high: #eae6de;
+    --surface-container-highest: #e4e0d8;
+    --tertiary: #705c30;
+    --error: #b83230;
+    --on-background: #2e3230;
+    --on-surface: #2e3230;
+    --on-surface-variant: #4a4e4a;
+    --on-primary: #ffffff;
+    --on-tertiary: #ffffff;
+    --on-error: #ffffff;
+    --outline-variant: #c4c8bc;
+    
+    --font-headline-family: "Literata", serif;
+    --font-body-family: "Nunito Sans", sans-serif;
+  }
+
+  .dark {
+    --primary: #93d5a6;
+    --primary-hover: #aef2c0;
+    --background: #161311;
+    --surface: #1e1b19; 
+    --surface-container-lowest: #100e0c;
+    --surface-container-low: #221f1d;
+    --surface-container: #2d2927;
+    --surface-container-high: #383432;
+    --surface-container-highest: #444845;
+    --tertiary: #ffb2bd;
+    --error: #ffb4ab;
+    --on-background: #e9e1dd;
+    --on-surface: #e9e1dd;
+    --on-surface-variant: #c0c9bf;
+    --on-primary: #00391d;
+    --on-tertiary: #571b29;
+    --on-error: #690005;
+    --outline-variant: #404941;
+    
+    --font-headline-family: "Newsreader", serif;
+    --font-body-family: "Be Vietnam Pro", sans-serif;
+  }
+
+  body {
+    @apply font-body bg-background text-on-background transition-colors duration-300;
+  }
+  h1, h2, h3, h4, .font-headline {
+    @apply font-headline;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e4e0d8;
+  border-radius: 10px;
+}
