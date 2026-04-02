@@ -3,6 +3,16 @@ import { initReactI18next } from 'react-i18next';
 
 const en = {
   translation: {
+    "login": {
+        "welcome": "Welcome back",
+        "subtitle": "Dispatch & Fleet Management Platform",
+        "email": "Email Address",
+        "password": "Password",
+        "rememberMe": "Remember me",
+        "forgotPassword": "Forgot password?",
+        "signIn": "Sign In",
+        "footer": "All rights reserved."
+    },
     
     "nav": {
         "dashboard": "Dashboard",
@@ -15,6 +25,11 @@ const en = {
         "support": "Support",
         "newTrip": "New Dispatch",
         "search": "Search trips or drivers..."
+    },
+    "menu": {
+        "myProfile": "My Profile",
+        "accountSettings": "Account Settings",
+        "signOut": "Sign Out"
     },
     "clients": {
         "title": "Client Management",
@@ -398,6 +413,16 @@ const en = {
 
 const es = {
   translation: {
+    "login": {
+        "welcome": "Bienvenido de nuevo",
+        "subtitle": "Plataforma de Despacho y Gestión de Flota",
+        "email": "Dirección de Correo",
+        "password": "Contraseña",
+        "rememberMe": "Recordar datos",
+        "forgotPassword": "¿Olvidó su contraseña?",
+        "signIn": "Iniciar Sesión",
+        "footer": "Todos los derechos reservados."
+    },
     
     "nav": {
         "dashboard": "Panel Principal",
@@ -410,6 +435,11 @@ const es = {
         "support": "Soporte",
         "newTrip": "Nuevo Despacho",
         "search": "Buscar viajes o conductores..."
+    },
+    "menu": {
+        "myProfile": "Mi Perfil",
+        "accountSettings": "Configuración de la cuenta",
+        "signOut": "Cerrar sesión"
     },
     "clients": {
         "title": "Gestión de Clientes",

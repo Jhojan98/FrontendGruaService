@@ -22,19 +22,22 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { NotificationsPanel } from './NotificationsPanel';
+import { SimplifiedProfileMenu } from './SimplifiedProfileMenu';
 
 export const Layout = ({ 
   children, 
   currentView, 
   onViewChange,
   isDarkMode,
-  setIsDarkMode
+  setIsDarkMode,
+  onLogout
 }: { 
   children: React.ReactNode;
   currentView: string;
   onViewChange: (view: string) => void;
   isDarkMode: boolean;
   setIsDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
+  onLogout?: () => void;
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
@@ -96,14 +99,7 @@ export const Layout = ({
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
             </button>
-            <div className="h-8 w-8 rounded-full bg-primary-container flex items-center justify-center overflow-hidden border border-outline-variant/30">
-              <img 
-                alt="User profile" 
-                className="w-full h-full object-cover" 
-                src="https://picsum.photos/seed/user/100/100"
-                referrerPolicy="no-referrer"
-              />
-            </div>
+            <SimplifiedProfileMenu onLogout={onLogout} onViewChange={onViewChange} />
           </div>
         </div>
       </header>

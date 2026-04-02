@@ -14,9 +14,23 @@ import { FleetManagement } from './components/FleetManagement';
 import { HomeDashboard } from './components/HomeDashboard';
 import { SupportCenter } from './components/SupportCenter';
 import { SettingsPage } from './components/SettingsPage';
+import { Login } from './components/Login';
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('auth') === 'true');
   const [currentView, setCurrentView] = useState('home');
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    localStorage.setItem('auth', 'true');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('auth');
+    setCurrentView('home');
+  };
+
   const [isDarkMode, setIsDarkMode] = useState(
     () => localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
   );
@@ -31,12 +45,17 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />;
+  }
+
   return (
       <Layout 
         currentView={currentView} 
         onViewChange={setCurrentView}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
+        onLogout={handleLogout}
       >
       {currentView === 'home' ? (
         <HomeDashboard />
