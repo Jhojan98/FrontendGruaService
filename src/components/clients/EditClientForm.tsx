@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Mail, 
   Phone, 
@@ -12,6 +12,16 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import {
+  createClientVehicle,
+  deleteClient,
+  deleteClientVehicle,
+  listClients,
+  listClientVehicles,
+  SELECTED_CLIENT_ID_STORAGE_KEY,
+  updateClient,
+} from '../../lib/api';
+import { ApiError } from '../../types';
 
 interface EditClientFormProps {
   onCancel: () => void;
@@ -23,30 +33,227 @@ interface Vehicle {
   make: string;
   model: string;
   licensePlate: string;
+  isNew?: boolean;
 }
+
+type EditClientFieldErrors = {
+  clientName?: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  lastServiceDate?: string;
+};
+
+const PHONE_PATTERN = /^[+()\-\s0-9]{7,20}$/;
 
 export const EditClientForm: React.FC<EditClientFormProps> = ({ onCancel, onSave }) => {
   const { t } = useTranslation();
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<EditClientFieldErrors>({});
+  const [clientName, setClientName] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [lastServiceDate, setLastServiceDate] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive' | 'suspended'>('active');
   const [clientType, setClientType] = useState<'corporate' | 'individual'>('corporate');
   const [terms, setTerms] = useState<string>('Net 30');
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { id: '1', make: 'Peterbilt', model: '389 Sleeper', licensePlate: 'TRK-9902' }
-  ]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
   const [newVehicle, setNewVehicle] = useState({ make: '', model: '', licensePlate: '' });
 
   const handleAddVehicle = () => {
     if (newVehicle.make && newVehicle.model && newVehicle.licensePlate) {
-      setVehicles([...vehicles, { ...newVehicle, id: Date.now().toString() }]);
+      setVehicles([...vehicles, { ...newVehicle, id: `new-${Date.now()}`, isNew: true }]);
       setNewVehicle({ make: '', model: '', licensePlate: '' });
       setIsAddingVehicle(false);
     }
   };
 
-  const handleRemoveVehicle = (id: string) => {
-    setVehicles(vehicles.filter(v => v.id !== id));
+  const handleRemoveVehicle = async (id: string) => {
+    const target = vehicles.find((vehicle) => vehicle.id === id);
+    if (!target) {
+      return;
+    }
+
+    if (!selectedClientId || target.isNew) {
+      setVehicles(vehicles.filter(v => v.id !== id));
+      return;
+    }
+
+    try {
+      await deleteClientVehicle(selectedClientId, id);
+      setVehicles(vehicles.filter(v => v.id !== id));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to remove vehicle';
+      setError(message);
+    }
+  };
+
+  useEffect(() => {
+    const clientId = sessionStorage.getItem(SELECTED_CLIENT_ID_STORAGE_KEY);
+    setSelectedClientId(clientId);
+    if (!clientId) {
+      setError('No client selected');
+      setIsLoading(false);
+      return;
+    }
+
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const [clients, clientVehicles] = await Promise.all([
+          listClients(),
+          listClientVehicles(clientId),
+        ]);
+        const client = clients.find((entry) => entry.id === clientId);
+        if (!client) {
+          setError('Client not found');
+          setIsLoading(false);
+          return;
+        }
+
+        setClientName(client.name);
+        setContactPerson(client.contact_person || '');
+        setEmail(client.email || '');
+        setPhone(client.phone);
+        setStatus(client.status);
+        setClientType(client.client_type);
+        setLogoUrl(client.logo_url || '');
+        setLogoPreviewUrl(client.logo_url || null);
+        setLastServiceDate(client.last_service_date || '');
+        setVehicles(
+          clientVehicles.map((vehicle) => ({
+            id: vehicle.id,
+            make: vehicle.make,
+            model: vehicle.model,
+            licensePlate: vehicle.license_plate,
+            isNew: false,
+          })),
+        );
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'Failed to load client';
+        setError(message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadData();
+  }, []);
+
+  const handleSaveChanges = async () => {
+    if (!selectedClientId) {
+      setError('No client selected');
+      return;
+    }
+    const normalizedName = clientName.trim();
+    const normalizedContact = contactPerson.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+    const normalizedDate = lastServiceDate.trim();
+
+    if (!normalizedName || !normalizedContact || !normalizedEmail || !normalizedPhone) {
+      const nextErrors: EditClientFieldErrors = {
+        clientName: normalizedName ? undefined : 'Company name is required.',
+        contactPerson: normalizedContact ? undefined : 'Contact person is required.',
+        email: normalizedEmail ? undefined : 'Email is required.',
+        phone: normalizedPhone ? undefined : 'Phone is required.',
+      };
+      if (normalizedDate && !/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+        nextErrors.lastServiceDate = 'Use format YYYY-MM-DD.';
+      }
+      setFieldErrors(nextErrors);
+      setError('Please review the highlighted fields.');
+      return;
+    }
+
+    if (normalizedDate && !/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+      setFieldErrors({ lastServiceDate: 'Use format YYYY-MM-DD.' });
+      setError('Please review the highlighted fields.');
+      return;
+    }
+
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
+      setFieldErrors({ email: 'Invalid email format.' });
+      setError('Please review the highlighted fields.');
+      return;
+    }
+
+    if (!PHONE_PATTERN.test(normalizedPhone)) {
+      setFieldErrors({ phone: 'Phone must be 7-20 chars and contain only numbers, spaces, +, -, ().' });
+      setError('Please review the highlighted fields.');
+      return;
+    }
+
+    setIsSaving(true);
+    setFieldErrors({});
+    setError(null);
+    try {
+      await updateClient(selectedClientId, {
+        name: normalizedName,
+        phone: normalizedPhone,
+        status,
+        contact_person: normalizedContact,
+        email: normalizedEmail,
+        client_type: clientType,
+        last_service_date: normalizedDate || null,
+      }, logoFile);
+
+      for (const vehicle of vehicles) {
+        if (!vehicle.isNew) {
+          continue;
+        }
+        await createClientVehicle(selectedClientId, {
+          make: vehicle.make,
+          model: vehicle.model,
+          license_plate: vehicle.licensePlate,
+          is_active: true,
+        });
+      }
+
+      onSave();
+    } catch (e) {
+      if (e instanceof ApiError) {
+        setError(e.message);
+      } else if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError('Failed to save changes');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    if (!selectedClientId) {
+      setError('No client selected');
+      return;
+    }
+
+    setIsDeleting(true);
+    setError(null);
+    try {
+      await deleteClient(selectedClientId);
+      setIsDeleteConfirmOpen(false);
+      onCancel();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to delete client';
+      setError(message);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -55,7 +262,7 @@ export const EditClientForm: React.FC<EditClientFormProps> = ({ onCancel, onSave
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h2 className="text-3xl font-bold text-on-background tracking-tight font-headline">
-              {t('edit_client.title', 'Edit Client: Redwood Logistics')}
+              {t('edit_client.title', 'Edit Client')}: {clientName || '...'}
             </h2>
           </div>
           
@@ -74,6 +281,15 @@ export const EditClientForm: React.FC<EditClientFormProps> = ({ onCancel, onSave
             </div>
           
             <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setIsDeleteConfirmOpen(true);
+                }}
+                disabled={isDeleting || isSaving || isLoading}
+                className="px-6 py-2.5 rounded-lg border border-error/30 text-error hover:bg-error/10 transition-colors font-bold text-sm"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Client'}
+              </button>
               <button 
                 onClick={onCancel}
                 className="px-6 py-2.5 rounded-lg border border-outline-variant text-stone-600 hover:bg-surface-container transition-colors font-bold text-sm"
@@ -81,14 +297,20 @@ export const EditClientForm: React.FC<EditClientFormProps> = ({ onCancel, onSave
                 {t('edit_client.cancel', 'Cancel')}
               </button>
               <button 
-                onClick={onSave} 
+                onClick={() => {
+                  void handleSaveChanges();
+                }} 
+                disabled={isSaving || isLoading || isDeleting}
                 className="px-6 py-2.5 rounded-lg bg-primary text-white shadow-sm hover:opacity-90 active:scale-95 transition-all font-bold text-sm"
               >
-                {t('edit_client.save_changes', 'Save Changes')}
+                {isSaving ? 'Saving...' : t('edit_client.save_changes', 'Save Changes')}
               </button>
             </div>
           </div>
         </header>
+        {error ? (
+          <div className="mb-6 rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">{error}</div>
+        ) : null}
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-20">
           <div className="md:col-span-8 space-y-8">
@@ -116,12 +338,30 @@ export const EditClientForm: React.FC<EditClientFormProps> = ({ onCancel, onSave
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1 mb-3">{t('edit_client.profile_photo_label', 'Profile Photo / Brand Logo')}</label>
                   <div className="flex items-center gap-6">
                     <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20 text-primary overflow-hidden">
-                      <ImageIcon className="w-8 h-8 text-primary" />
+                      {logoPreviewUrl ? (
+                        <img src={logoPreviewUrl} alt="Client logo preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-8 h-8 text-primary" />
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <button className="px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg text-sm font-bold hover:bg-primary/20 transition-all">
+                      <label className="inline-flex cursor-pointer px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg text-sm font-bold hover:bg-primary/20 transition-all">
                         {t('edit_client.change_logo', 'Change Logo')}
-                      </button>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={(event) => {
+                            const selected = event.target.files?.[0] ?? null;
+                            setLogoFile(selected);
+                            if (selected) {
+                              setLogoPreviewUrl(URL.createObjectURL(selected));
+                            } else {
+                              setLogoPreviewUrl(logoUrl || null);
+                            }
+                          }}
+                        />
+                      </label>
                       <p className="text-xs text-stone-500">{t('edit_client.logo_hint', 'JPG, PNG or GIF. Max size 2MB.')}</p>
                     </div>
                   </div>
@@ -129,25 +369,49 @@ export const EditClientForm: React.FC<EditClientFormProps> = ({ onCancel, onSave
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1">{t('edit_client.company_name', 'Company Name')}</label>
-                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" defaultValue="Redwood Logistics Group" type="text" />
+                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" value={clientName} onChange={(e) => {
+                    setClientName(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, clientName: undefined }));
+                  }} type="text" />
+                  {fieldErrors.clientName ? <p className="text-xs text-error">{fieldErrors.clientName}</p> : null}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1">{t('edit_client.contact_person', 'Contact Person')}</label>
-                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" defaultValue="Sarah Jenkins" type="text" />
+                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" value={contactPerson} onChange={(e) => {
+                    setContactPerson(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, contactPerson: undefined }));
+                  }} type="text" />
+                  {fieldErrors.contactPerson ? <p className="text-xs text-error">{fieldErrors.contactPerson}</p> : null}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1">{t('edit_client.email_address', 'Email Address')}</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
-                    <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 pl-11 pr-4 transition-all outline-none text-on-surface" defaultValue="s.jenkins@redwood.com" type="email" />
+                    <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 pl-11 pr-4 transition-all outline-none text-on-surface" value={email} onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                    }} type="email" />
                   </div>
+                  {fieldErrors.email ? <p className="text-xs text-error">{fieldErrors.email}</p> : null}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1">{t('edit_client.phone_number', 'Phone Number')}</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
-                    <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 pl-11 pr-4 transition-all outline-none text-on-surface" defaultValue="+1 (555) 234-8900" type="tel" />
+                    <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 pl-11 pr-4 transition-all outline-none text-on-surface" value={phone} onChange={(e) => {
+                      setPhone(e.target.value);
+                      setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                    }} type="tel" />
                   </div>
+                  {fieldErrors.phone ? <p className="text-xs text-error">{fieldErrors.phone}</p> : null}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-on-surface-variant block ml-1">Last Service Date</label>
+                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" value={lastServiceDate} onChange={(e) => {
+                    setLastServiceDate(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, lastServiceDate: undefined }));
+                  }} type="text" placeholder="YYYY-MM-DD" />
+                  {fieldErrors.lastServiceDate ? <p className="text-xs text-error">{fieldErrors.lastServiceDate}</p> : null}
                 </div>
               </div>
             </section>
@@ -332,6 +596,35 @@ export const EditClientForm: React.FC<EditClientFormProps> = ({ onCancel, onSave
           <HelpCircle className="w-6 h-6" />
         </button>
       </div>
+
+      {isDeleteConfirmOpen ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/45 backdrop-blur-[1px] animate-in fade-in duration-200">
+          <div className="w-[92%] max-w-md rounded-2xl border border-outline-variant/40 bg-surface p-6 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200">
+            <h3 className="text-lg font-bold text-on-surface mb-2">{t('confirm_delete_client', 'Are you sure you want to delete this client?')}</h3>
+            <p className="text-sm text-on-surface-variant mb-6">
+              {clientName || 'Client'}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors text-sm font-bold disabled:opacity-60"
+              >
+                {t('cancel', 'Cancel')}
+              </button>
+              <button
+                onClick={() => {
+                  void handleDeleteClient();
+                }}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-lg bg-error text-white hover:opacity-90 transition-all text-sm font-bold disabled:opacity-60"
+              >
+                {isDeleting ? 'Deleting...' : t('delete', 'Delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

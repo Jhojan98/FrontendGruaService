@@ -1,7 +1,21 @@
-import { ApiError, LoginRequest, LoginResponse, UpdateMePayload, UserMe } from '../types';
+import {
+  ApiError,
+  Client,
+  ClientCreatePayload,
+  ClientHistoryEntry,
+  ClientUpdatePayload,
+  ClientVehicle,
+  ClientVehicleCreatePayload,
+  ClientVehicleUpdatePayload,
+  LoginRequest,
+  LoginResponse,
+  UpdateMePayload,
+  UserMe,
+} from '../types';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 const TOKEN_STORAGE_KEY = 'auth_token';
+export const SELECTED_CLIENT_ID_STORAGE_KEY = 'selected_client_id';
 
 function buildHeaders(contentType: string | null = 'application/json'): HeadersInit {
   const headers: Record<string, string> = {};
@@ -38,6 +52,9 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, init);
   if (!response.ok) {
     await parseError(response);
+  }
+  if (response.status === 204) {
+    return undefined as T;
   }
   return response.json() as Promise<T>;
 }
@@ -92,5 +109,112 @@ export async function patchMe(payload: UpdateMePayload, profileImageFile?: File 
     method: 'PATCH',
     headers: buildHeaders(),
     body: JSON.stringify(payload),
+  });
+}
+
+export async function listClients(): Promise<Client[]> {
+  return request<Client[]>('/clients', {
+    method: 'GET',
+    headers: buildHeaders(null),
+  });
+}
+
+export async function createClient(payload: ClientCreatePayload, logoFile?: File | null): Promise<Client> {
+  if (logoFile) {
+    const formData = new FormData();
+    formData.append('file', logoFile);
+
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value === undefined || value === null) {
+        return;
+      }
+      formData.append(key, String(value));
+    });
+
+    return request<Client>('/clients', {
+      method: 'POST',
+      headers: buildHeaders(null),
+      body: formData,
+    });
+  }
+
+  return request<Client>('/clients', {
+    method: 'POST',
+    headers: buildHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateClient(clientId: string, payload: ClientUpdatePayload, logoFile?: File | null): Promise<Client> {
+  if (logoFile) {
+    const formData = new FormData();
+    formData.append('file', logoFile);
+
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value === undefined || value === null) {
+        return;
+      }
+      formData.append(key, String(value));
+    });
+
+    return request<Client>(`/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: buildHeaders(null),
+      body: formData,
+    });
+  }
+
+  return request<Client>(`/clients/${clientId}`, {
+    method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteClient(clientId: string): Promise<void> {
+  await request<void>(`/clients/${clientId}`, {
+    method: 'DELETE',
+    headers: buildHeaders(null),
+  });
+}
+
+export async function listClientVehicles(clientId: string): Promise<ClientVehicle[]> {
+  return request<ClientVehicle[]>(`/clients/${clientId}/vehicles`, {
+    method: 'GET',
+    headers: buildHeaders(null),
+  });
+}
+
+export async function createClientVehicle(clientId: string, payload: ClientVehicleCreatePayload): Promise<ClientVehicle> {
+  return request<ClientVehicle>(`/clients/${clientId}/vehicles`, {
+    method: 'POST',
+    headers: buildHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateClientVehicle(
+  clientId: string,
+  vehicleId: string,
+  payload: ClientVehicleUpdatePayload,
+): Promise<ClientVehicle> {
+  return request<ClientVehicle>(`/clients/${clientId}/vehicles/${vehicleId}`, {
+    method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteClientVehicle(clientId: string, vehicleId: string): Promise<void> {
+  await request<void>(`/clients/${clientId}/vehicles/${vehicleId}`, {
+    method: 'DELETE',
+    headers: buildHeaders(null),
+  });
+}
+
+export async function listClientHistory(clientId: string): Promise<ClientHistoryEntry[]> {
+  return request<ClientHistoryEntry[]>(`/clients/${clientId}/history`, {
+    method: 'GET',
+    headers: buildHeaders(null),
   });
 }

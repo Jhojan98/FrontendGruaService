@@ -5,6 +5,7 @@ import { Button, Input, Select, Label } from './ui/Inputs';
 import { cn } from '../lib/utils';
 import { Client, Base, DispatchFormData } from '../types';
 import { motion } from 'motion/react';
+import { listClients } from '../lib/api';
 
 export const DispatchForm = () => {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export const DispatchForm = () => {
 
   useEffect(() => {
     fetch('/api/bases').then(res => res.json()).then(setBases);
-    fetch('/api/clients').then(res => res.json()).then(setClients);
+    listClients().then(setClients).catch(() => setClients([]));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,7 +170,7 @@ export const DispatchForm = () => {
                     <div className="relative">
                       <Input 
                         className="pl-12" 
-                        placeholder={t('search_by_name__phone__or_membership_id', 'Search by name, phone, or membership ID...')} 
+                        placeholder={t('search_by_name__phone__or_status', 'Search by name, phone, or status...')} 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
@@ -190,7 +191,7 @@ export const DispatchForm = () => {
                             className="w-full px-4 py-3 text-left hover:bg-primary/5 transition-colors border-b border-outline-variant/30 last:border-0"
                           >
                             <p className="text-sm font-bold">{client.name}</p>
-                            <p className="text-[10px] text-on-surface-variant">{client.membership} • {client.phone}</p>
+                            <p className="text-[10px] text-on-surface-variant">{client.status} • {client.phone}</p>
                           </button>
                         ))}
                       </div>
@@ -205,7 +206,7 @@ export const DispatchForm = () => {
                       </div>
                       <div className="flex-1">
                         <p className="text-base font-bold text-on-surface">{selectedClient.name}</p>
-                        <p className="text-xs text-on-surface-variant font-semibold">{selectedClient.membership} Member • {selectedClient.phone}</p>
+                        <p className="text-xs text-on-surface-variant font-semibold">{selectedClient.status} • {selectedClient.phone}</p>
                       </div>
                       <button 
                         type="button" 
@@ -233,12 +234,11 @@ export const DispatchForm = () => {
                     <Input placeholder="(503) 000-0000" />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>{t('membership__optional', 'Membership (Optional)')}</Label>
+                    <Label>{t('status', 'Status')}</Label>
                     <Select>
-                      <option>{t('none', 'None')}</option>
-                      <option>{t('standard', 'Standard')}</option>
-                      <option>{t('premium', 'Premium')}</option>
-                      <option>{t('gold', 'Gold')}</option>
+                      <option>active</option>
+                      <option>inactive</option>
+                      <option>suspended</option>
                     </Select>
                   </div>
                 </div>

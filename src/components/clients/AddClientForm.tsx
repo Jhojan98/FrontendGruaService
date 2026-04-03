@@ -11,6 +11,8 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { createClient, createClientVehicle } from '../../lib/api';
+import { ApiError } from '../../types';
 
 interface AddClientFormProps {
   onCancel: () => void;
@@ -23,14 +25,33 @@ interface Vehicle {
   licensePlate: string;
 }
 
+type AddClientFieldErrors = {
+  clientName?: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  lastServiceDate?: string;
+};
+
+const PHONE_PATTERN = /^[+()\-\s0-9]{7,20}$/;
+
 export const AddClientForm: React.FC<AddClientFormProps> = ({ onCancel }) => {
   const { t } = useTranslation();
   const [clientType, setClientType] = useState<'corporate' | 'individual'>('corporate');
+  const [status, setStatus] = useState<'active' | 'inactive' | 'suspended'>('active');
   const [terms, setTerms] = useState<string>('COD');
+  const [clientName, setClientName] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [lastServiceDate, setLastServiceDate] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<AddClientFieldErrors>({});
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { id: '1', make: 'Peterbilt', model: '389 Sleeper', licensePlate: 'TRK-9902' }
-  ]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
   const [newVehicle, setNewVehicle] = useState({ make: '', model: '', licensePlate: '' });
 
@@ -44,6 +65,88 @@ export const AddClientForm: React.FC<AddClientFormProps> = ({ onCancel }) => {
 
   const handleRemoveVehicle = (id: string) => {
     setVehicles(vehicles.filter(v => v.id !== id));
+  };
+
+  const handleSave = async () => {
+    const normalizedName = clientName.trim();
+    const normalizedContact = contactPerson.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+    const normalizedDate = lastServiceDate.trim();
+
+    const nextErrors: AddClientFieldErrors = {};
+    if (!normalizedName) {
+      nextErrors.clientName = 'Company name is required.';
+    }
+    if (!normalizedContact) {
+      nextErrors.contactPerson = 'Contact person is required.';
+    }
+    if (!normalizedEmail) {
+      nextErrors.email = 'Email is required.';
+    }
+    if (!normalizedPhone) {
+      nextErrors.phone = 'Phone is required.';
+    }
+    if (normalizedDate && !/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+      nextErrors.lastServiceDate = 'Use format YYYY-MM-DD.';
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      setError('Please review the highlighted fields.');
+      return;
+    }
+
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
+      setFieldErrors({ email: 'Invalid email format.' });
+      setError('Please review the highlighted fields.');
+      return;
+    }
+
+    if (!PHONE_PATTERN.test(normalizedPhone)) {
+      setFieldErrors({ phone: 'Phone must be 7-20 chars and contain only numbers, spaces, +, -, ().' });
+      setError('Please review the highlighted fields.');
+      return;
+    }
+
+    setIsSaving(true);
+    setFieldErrors({});
+    setError(null);
+
+    try {
+      const client = await createClient({
+        name: normalizedName,
+        phone: normalizedPhone,
+        status,
+        contact_person: normalizedContact,
+        email: normalizedEmail,
+        client_type: clientType,
+        last_service_date: normalizedDate || null,
+      }, logoFile);
+
+      for (const vehicle of vehicles) {
+        if (!vehicle.make || !vehicle.model || !vehicle.licensePlate) {
+          continue;
+        }
+        await createClientVehicle(client.id, {
+          make: vehicle.make,
+          model: vehicle.model,
+          license_plate: vehicle.licensePlate,
+          is_active: true,
+        });
+      }
+
+      onCancel();
+    } catch (e) {
+      if (e instanceof ApiError) {
+        setError(e.message);
+      } else if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError('Failed to create client');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -62,15 +165,18 @@ export const AddClientForm: React.FC<AddClientFormProps> = ({ onCancel }) => {
             </button>
             <button 
               onClick={() => {
-                console.log('Saved Client');
-                onCancel();
+                void handleSave();
               }} 
+              disabled={isSaving}
               className="px-6 py-2.5 rounded-lg bg-primary text-white shadow-sm hover:opacity-90 active:scale-95 transition-all font-bold text-sm"
             >
-              Save Client
+              {isSaving ? 'Saving...' : 'Save Client'}
             </button>
           </div>
         </header>
+        {error ? (
+          <div className="mb-6 rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">{error}</div>
+        ) : null}
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-20">
           <div className="md:col-span-8 space-y-8">
@@ -98,12 +204,30 @@ export const AddClientForm: React.FC<AddClientFormProps> = ({ onCancel }) => {
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1 mb-3">{t("add_client.profile_photo_label", "Profile Photo / Brand Logo")}</label>
                   <div className="flex items-center gap-6">
                     <div className="w-24 h-24 rounded-full bg-surface-container-highest flex items-center justify-center border-2 border-dashed border-outline-variant text-stone-400">
-                      <ImageIcon className="w-8 h-8 text-stone-400" />
+                      {logoPreviewUrl ? (
+                        <img src={logoPreviewUrl} alt="Client logo preview" className="w-full h-full object-cover rounded-full" />
+                      ) : (
+                        <ImageIcon className="w-8 h-8 text-stone-400" />
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <button className="px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg text-sm font-bold hover:bg-primary/20 transition-all">
+                      <label className="inline-flex cursor-pointer px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg text-sm font-bold hover:bg-primary/20 transition-all">
                         Upload New
-                      </button>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={(event) => {
+                            const selected = event.target.files?.[0] ?? null;
+                            setLogoFile(selected);
+                            if (selected) {
+                              setLogoPreviewUrl(URL.createObjectURL(selected));
+                            } else {
+                              setLogoPreviewUrl(null);
+                            }
+                          }}
+                        />
+                      </label>
                       <p className="text-xs text-stone-500">{t("add_client.logo_hint", "JPG, PNG or GIF. Max size 2MB.")}</p>
                     </div>
                   </div>
@@ -111,25 +235,57 @@ export const AddClientForm: React.FC<AddClientFormProps> = ({ onCancel }) => {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1">{t("add_client.company_name", "Company Name")}</label>
-                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" placeholder="e.g. Acme Logistics Corp" type="text"/>
+                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" placeholder="e.g. Acme Logistics Corp" type="text" value={clientName} onChange={(e) => {
+                    setClientName(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, clientName: undefined }));
+                  }} />
+                  {fieldErrors.clientName ? <p className="text-xs text-error">{fieldErrors.clientName}</p> : null}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1">{t("add_client.contact_person", "Contact Person")}</label>
-                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" placeholder="Full name" type="text"/>
+                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" placeholder="Full name" type="text" value={contactPerson} onChange={(e) => {
+                    setContactPerson(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, contactPerson: undefined }));
+                  }} />
+                  {fieldErrors.contactPerson ? <p className="text-xs text-error">{fieldErrors.contactPerson}</p> : null}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1">{t("add_client.email_address", "Email Address")}</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
-                    <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 pl-11 pr-4 transition-all outline-none text-on-surface" placeholder="billing@acme.com" type="email"/>
+                    <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 pl-11 pr-4 transition-all outline-none text-on-surface" placeholder="billing@acme.com" type="email" value={email} onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                    }} />
                   </div>
+                  {fieldErrors.email ? <p className="text-xs text-error">{fieldErrors.email}</p> : null}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-on-surface-variant block ml-1">{t("add_client.phone_number", "Phone Number")}</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
-                    <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 pl-11 pr-4 transition-all outline-none text-on-surface" placeholder="+1 (555) 000-0000" type="tel"/>
+                    <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 pl-11 pr-4 transition-all outline-none text-on-surface" placeholder="+1 (555) 000-0000" type="tel" value={phone} onChange={(e) => {
+                      setPhone(e.target.value);
+                      setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                    }} />
                   </div>
+                  {fieldErrors.phone ? <p className="text-xs text-error">{fieldErrors.phone}</p> : null}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-on-surface-variant block ml-1">Status</label>
+                  <select className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all appearance-none outline-none text-on-surface" value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'inactive' | 'suspended')}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-semibold text-on-surface-variant block ml-1">Last Service Date</label>
+                  <input className="w-full bg-background border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary rounded-lg py-3 px-4 transition-all outline-none text-on-surface" placeholder="YYYY-MM-DD" type="text" value={lastServiceDate} onChange={(e) => {
+                    setLastServiceDate(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, lastServiceDate: undefined }));
+                  }} />
+                  {fieldErrors.lastServiceDate ? <p className="text-xs text-error">{fieldErrors.lastServiceDate}</p> : null}
                 </div>
               </div>
             </section>

@@ -1,8 +1,67 @@
 export interface Client {
   id: string;
   name: string;
-  membership: string;
   phone: string;
+  status: 'active' | 'inactive' | 'suspended';
+  contact_person: string | null;
+  email: string | null;
+  client_type: 'corporate' | 'individual';
+  logo_url: string | null;
+  last_service_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientVehicle {
+  id: string;
+  client_id: string;
+  make: string;
+  model: string;
+  license_plate: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientHistoryEntry {
+  id: string;
+  date: string;
+  service: string;
+  revenue: number;
+}
+
+export interface ClientCreatePayload {
+  name: string;
+  phone: string;
+  status: 'active' | 'inactive' | 'suspended';
+  contact_person: string;
+  email: string;
+  client_type: 'corporate' | 'individual';
+  last_service_date?: string | null;
+}
+
+export interface ClientUpdatePayload {
+  name?: string;
+  phone?: string;
+  status?: 'active' | 'inactive' | 'suspended';
+  contact_person?: string | null;
+  email?: string | null;
+  client_type?: 'corporate' | 'individual';
+  last_service_date?: string | null;
+}
+
+export interface ClientVehicleCreatePayload {
+  make: string;
+  model: string;
+  license_plate: string;
+  is_active: boolean;
+}
+
+export interface ClientVehicleUpdatePayload {
+  make?: string;
+  model?: string;
+  license_plate?: string;
+  is_active?: boolean;
 }
 
 export interface Base {
