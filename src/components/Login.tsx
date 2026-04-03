@@ -3,19 +3,31 @@ import { useTranslation } from 'react-i18next';
 import { Moon, Sun } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (email: string, password: string) => Promise<void>;
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean) => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-export function Login({ onLogin, isDarkMode, setIsDarkMode }: LoginProps) {
+export function Login({ onLogin, isDarkMode, setIsDarkMode, isLoading = false, error = null }: LoginProps) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    setLocalError(null);
+    try {
+      await onLogin(email.trim(), password);
+    } catch (err) {
+      if (err instanceof Error && err.message) {
+        setLocalError(err.message);
+      } else {
+        setLocalError('Unable to sign in with the provided credentials');
+      }
+    }
   };
 
   return (
@@ -84,11 +96,16 @@ export function Login({ onLogin, isDarkMode, setIsDarkMode }: LoginProps) {
             <a href="#" className="font-medium text-[#4a7c59] hover:text-[#3b6649] transition-colors">{t('login.forgotPassword')}</a>
           </div>
 
+          {(error || localError) && (
+            <p className="text-sm text-red-500 font-medium">{error || localError}</p>
+          )}
+
           <button
             type="submit"
-            className="w-full py-3 px-4 bg-[#4a7c59] hover:bg-[#3b6649] text-white rounded-xl font-medium transition-colors duration-200 mt-6 shadow-md shadow-[#4a7c59]/20"
+            disabled={isLoading}
+            className="w-full py-3 px-4 bg-[#4a7c59] hover:bg-[#3b6649] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors duration-200 mt-6 shadow-md shadow-[#4a7c59]/20"
           >
-             {t('login.signIn')}
+             {isLoading ? 'Signing in...' : t('login.signIn')}
           </button>
         </form>
 

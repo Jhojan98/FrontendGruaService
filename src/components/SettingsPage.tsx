@@ -11,19 +11,136 @@ import {
   MessageSquare, 
   AppWindow 
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { UpdateMePayload } from '../types';
 
 export interface SettingsPageProps {
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
 }
 
+function ToggleSwitch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-surface-container-high'}`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-surface transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`}
+      />
+    </button>
+  );
+}
+
 export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDarkMode }) => {
   const { t, i18n } = useTranslation();
+  const { user, updateMe, isSubmitting, error, clearError } = useAuth();
+  const [fullName, setFullName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [employeeId, setEmployeeId] = React.useState('');
+  const [officeLocation, setOfficeLocation] = React.useState('');
+  const [language, setLanguage] = React.useState(i18n.language || 'en');
+  const [emailAlerts, setEmailAlerts] = React.useState(true);
+  const [smsUrgentAlerts, setSmsUrgentAlerts] = React.useState(true);
+  const [browserNotifications, setBrowserNotifications] = React.useState(true);
+  const [profileImageUrl, setProfileImageUrl] = React.useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [saveMessage, setSaveMessage] = React.useState<string | null>(null);
+  const [formError, setFormError] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setFullName(user.full_name);
+    setEmail(user.email);
+    setEmployeeId(user.employee_id ?? '');
+    setOfficeLocation(user.office_location ?? '');
+    setLanguage(user.language || 'en');
+    setEmailAlerts(user.email_alerts);
+    setSmsUrgentAlerts(user.sms_urgent_alerts);
+    setBrowserNotifications(user.browser_notifications);
+    setProfileImageUrl(user.profile_image_url);
+  }, [user]);
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLang = e.target.value;
-    i18n.changeLanguage(newLang);
-    localStorage.setItem('language', newLang);
+    setLanguage(newLang);
+  };
+
+  const triggerFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setSelectedFile(file);
+    setProfileImageUrl(URL.createObjectURL(file));
+  };
+
+  const handleSaveChanges = async () => {
+    setFormError(null);
+    setSaveMessage(null);
+    clearError();
+
+    const trimmedName = fullName.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      setFormError('Full name is required');
+      return;
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(trimmedEmail)) {
+      setFormError('Please enter a valid email address');
+      return;
+    }
+
+    const payload: UpdateMePayload = {
+      full_name: trimmedName,
+      email: trimmedEmail,
+      employee_id: employeeId.trim() || null,
+      office_location: officeLocation.trim() || null,
+      theme: isDarkMode ? 'dark' : 'light',
+      language,
+      email_alerts: emailAlerts,
+      sms_urgent_alerts: smsUrgentAlerts,
+      browser_notifications: browserNotifications,
+    };
+
+    try {
+      const updated = await updateMe(payload, selectedFile);
+      i18n.changeLanguage(updated.language);
+      localStorage.setItem('language', updated.language);
+      setIsDarkMode(updated.theme === 'dark');
+      setSelectedFile(null);
+      setSaveMessage('Profile updated successfully');
+    } catch (err) {
+      if (err instanceof Error) {
+        setFormError(err.message);
+      } else {
+        setFormError('Could not save changes. Please try again.');
+      }
+    }
   };
 
   return (
@@ -40,32 +157,71 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
             <img 
               className="w-32 h-32 rounded-xl object-cover shadow-md" 
               alt="close up headshot of male senior dispatcher with warm lighting and organic soft focus background" 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRKLoBDM8al8purQ4ioQYwWhF5nEHmnKhFTURm8tuu8FgCM0kcRi1N7W5r9heFvkiKAA6HkK03OMjpaOe6dpS-qBQggy_1THE526OVce7H_1R063tts9QxOX7xt6kqg-rtMmwLf0SwVQqO2w_JmgAHNgo7zIJrmtQqQcty9Axz91gFfwe9NnXMqfRH_vumHLNTjDSOMEoSZt5Rs3LERfYjh3xWNDB3f-fD6Xeyqaq6GajKcSRWMCpB4Awsg1S7C8UpHE0iLR32LCY"
+              src={profileImageUrl ?? 'https://picsum.photos/seed/profile/240/240'}
             />
-            <button className="absolute -bottom-2 -right-2 bg-primary text-on-primary p-2 rounded-full shadow-lg hover:scale-105 transition-transform">
+            <button
+              onClick={triggerFilePicker}
+              className="absolute -bottom-2 -right-2 bg-primary text-on-primary p-2 rounded-full shadow-lg hover:scale-105 transition-transform"
+            >
               <Edit2 className="w-4 h-4" />
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelected}
+            />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-2xl font-headline font-bold text-on-background">{t('alex_dispatcher', 'Alex Dispatcher')}</h3>
-                <p className="text-primary font-bold text-sm">{t('senior_dispatcher', 'Senior Dispatcher')}</p>
+              <div className="min-w-0 pr-4">
+                <h3
+                  className="text-2xl font-headline font-bold text-on-background truncate"
+                  title={fullName || t('unknown_user', 'Unknown User')}
+                >
+                  {fullName || t('unknown_user', 'Unknown User')}
+                </h3>
+                <p className="text-primary font-bold text-sm">{user?.role ?? t('dispatcher', 'Dispatcher')}</p>
               </div>
               <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{t('active', 'Active')}</span>
             </div>
             <div className="grid grid-cols-2 gap-6 font-body text-sm">
               <div>
                 <label className="block text-outline mb-1">{t('email_address', 'Email Address')}</label>
-                <p className="text-on-background font-semibold">{t('alex_d_terratowing_com', 'alex.d@terratowing.com')}</p>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-surface border border-outline-variant/50 rounded-xl text-sm py-2.5 px-4 focus:ring-2 focus:ring-primary/20"
+                />
               </div>
               <div>
                 <label className="block text-outline mb-1">{t('employee_id', 'Employee ID')}</label>
-                <p className="text-on-background font-semibold">{t('tt_8842_sd', 'TT-8842-SD')}</p>
+                <input
+                  type="text"
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  className="w-full bg-surface border border-outline-variant/50 rounded-xl text-sm py-2.5 px-4 focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-outline mb-1">{t('full_name', 'Full Name')}</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full bg-surface border border-outline-variant/50 rounded-xl text-sm py-2.5 px-4 focus:ring-2 focus:ring-primary/20"
+                />
               </div>
               <div className="col-span-2">
                 <label className="block text-outline mb-1">{t('office_location', 'Office Location')}</label>
-                <p className="text-on-background font-semibold">{t('northwest_regional_hub___portland__or', 'Northwest Regional Hub — Portland, OR')}</p>
+                <input
+                  type="text"
+                  value={officeLocation}
+                  onChange={(e) => setOfficeLocation(e.target.value)}
+                  className="w-full bg-surface border border-outline-variant/50 rounded-xl text-sm py-2.5 px-4 focus:ring-2 focus:ring-primary/20"
+                />
               </div>
             </div>
           </div>
@@ -81,9 +237,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
             <p className="text-primary/80 text-sm mb-6 leading-relaxed">
               {t('your_password_was_last_changed_42_days_a', 'Your password was last changed 42 days ago. We recommend updating it every 90 days.')}
             </p>
-            <button className="bg-primary text-on-primary px-6 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity">
+            <button disabled className="bg-primary text-on-primary px-6 py-2.5 rounded-xl font-bold text-sm opacity-60 cursor-not-allowed">
               {t('update_password', 'Update Password')}
             </button>
+            <p className="text-xs text-primary/70 mt-2">{t('coming_soon', 'Coming soon')}</p>
           </div>
           <Shield className="absolute -bottom-4 -right-4 w-32 h-32 text-primary/10 pointer-events-none" />
         </div>
@@ -119,11 +276,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
             <div className="border-t border-outline-variant/30 dark:border-outline-variant/30 pt-6">
               <label className="block font-bold text-sm mb-3">{t('settings.language', 'System Language')}</label>
               <select 
-                value={i18n.language}
-                onChange={(e) => {
-                    i18n.changeLanguage(e.target.value);
-                    localStorage.setItem('language', e.target.value);
-                }}
+                value={language}
+                onChange={handleLanguageChange}
                 className="w-full bg-surface border border-outline-variant/50 rounded-xl text-sm py-2.5 px-4 focus:ring-2 focus:ring-primary/20 appearance-none"
               >
                 <option value="en">{t('english__us', 'English (US)')}</option>
@@ -160,8 +314,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
                 </div>
               </div>
               <div className="relative inline-flex items-center cursor-pointer">
-                <input defaultChecked className="sr-only peer" type="checkbox" />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                <ToggleSwitch checked={emailAlerts} onChange={setEmailAlerts} label={t('email_alerts', 'Email Alerts')} />
               </div>
             </div>
 
@@ -177,8 +330,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
                 </div>
               </div>
               <div className="relative inline-flex items-center cursor-pointer">
-                <input defaultChecked className="sr-only peer" type="checkbox" />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                <ToggleSwitch checked={smsUrgentAlerts} onChange={setSmsUrgentAlerts} label={t('sms_urgent_alerts', 'SMS Urgent Alerts')} />
               </div>
             </div>
 
@@ -194,14 +346,45 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
                 </div>
               </div>
               <div className="relative inline-flex items-center cursor-pointer">
-                <input className="sr-only peer" type="checkbox" />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                <ToggleSwitch checked={browserNotifications} onChange={setBrowserNotifications} label={t('browser_notifications', 'Browser Notifications')} />
               </div>
             </div>
+
+            {(formError || error) && (
+              <p className="text-sm text-red-500 mt-4">{formError || error}</p>
+            )}
+            {saveMessage && <p className="text-sm text-green-600 mt-4">{saveMessage}</p>}
             
             <div className="mt-8 pt-6 border-t border-outline-variant/30 dark:border-outline-variant/30 flex justify-end gap-3">
-              <button className="px-6 py-2.5 rounded-xl text-on-surface-variant font-bold text-sm hover:bg-surface-container-low transition-colors">{t('reset_defaults', 'Reset Defaults')}</button>
-              <button className="bg-primary text-on-primary px-8 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:opacity-90 transition-opacity">{t('save_changes', 'Save Changes')}</button>
+              <button
+                onClick={() => {
+                  if (!user) {
+                    return;
+                  }
+                  setFullName(user.full_name);
+                  setEmail(user.email);
+                  setEmployeeId(user.employee_id ?? '');
+                  setOfficeLocation(user.office_location ?? '');
+                  setLanguage(user.language || 'en');
+                  setEmailAlerts(user.email_alerts);
+                  setSmsUrgentAlerts(user.sms_urgent_alerts);
+                  setBrowserNotifications(user.browser_notifications);
+                  setProfileImageUrl(user.profile_image_url);
+                  setSelectedFile(null);
+                  setFormError(null);
+                  setSaveMessage(null);
+                }}
+                className="px-6 py-2.5 rounded-xl text-on-surface-variant font-bold text-sm hover:bg-surface-container-low transition-colors"
+              >
+                {t('reset_defaults', 'Reset Defaults')}
+              </button>
+              <button
+                onClick={handleSaveChanges}
+                disabled={isSubmitting}
+                className="bg-primary text-on-primary px-8 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+              >
+                {isSubmitting ? t('saving', 'Saving...') : t('save_changes', 'Save Changes')}
+              </button>
             </div>
           </div>
         </div>

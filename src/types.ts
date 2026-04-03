@@ -37,3 +37,56 @@ export interface DispatchFormData {
   vehicleColorPlate: string;
   occupants: number;
 }
+
+export type UserRole = 'admin' | 'dispatcher';
+export type ThemeMode = 'light' | 'dark';
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+}
+
+export interface UserMe {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  profile_image_url: string | null;
+  theme: ThemeMode;
+  language: string;
+  email_alerts: boolean;
+  sms_urgent_alerts: boolean;
+  browser_notifications: boolean;
+  employee_id: string | null;
+  office_location: string | null;
+}
+
+export interface UpdateMePayload {
+  email?: string;
+  full_name?: string;
+  profile_image_url?: string | null;
+  theme?: ThemeMode;
+  language?: string;
+  email_alerts?: boolean;
+  sms_urgent_alerts?: boolean;
+  browser_notifications?: boolean;
+  employee_id?: string | null;
+  office_location?: string | null;
+}
+
+export class ApiError extends Error {
+  status: number;
+  details: unknown;
+
+  constructor(message: string, status: number, details: unknown = null) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.details = details;
+  }
+}

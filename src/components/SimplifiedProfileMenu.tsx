@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogOut, User, Settings as SettingsIcon } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export function SimplifiedProfileMenu({
   onLogout,
@@ -10,8 +11,18 @@ export function SimplifiedProfileMenu({
   onViewChange?: (view: string) => void;
 }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const displayName = user?.full_name ?? t('unknown_user', 'Unknown User');
+  const displayEmail = user?.email ?? t('no_email', 'No email');
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -31,19 +42,23 @@ export function SimplifiedProfileMenu({
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
-        <img 
-          alt="User profile" 
-          className="w-full h-full object-cover" 
-          src="https://picsum.photos/seed/user/100/100"
-          referrerPolicy="no-referrer"
-        />
+        {user?.profile_image_url ? (
+          <img
+            alt="User profile"
+            className="w-full h-full object-cover"
+            src={user.profile_image_url}
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="text-xs font-bold text-primary">{initials || 'U'}</span>
+        )}
       </button>
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-56 rounded-xl bg-surface shadow-lg border border-outline-variant/30 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="px-4 py-3 border-b border-outline-variant/30">
-            <p className="text-sm font-bold text-on-surface font-headline">{t('alex_dispatcher', 'Alex Dispatcher')}</p>
-            <p className="text-xs text-on-surface-variant font-medium mt-0.5">{t('alex_d_terratowing_com', 'alex.d@terratowing.com')}</p>
+            <p className="text-sm font-bold text-on-surface font-headline truncate" title={displayName}>{displayName}</p>
+            <p className="text-xs text-on-surface-variant font-medium mt-0.5 truncate" title={displayEmail}>{displayEmail}</p>
           </div>
           
           <div className="py-1">

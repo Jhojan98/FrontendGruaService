@@ -15,25 +15,33 @@ import { HomeDashboard } from './components/HomeDashboard';
 import { SupportCenter } from './components/SupportCenter';
 import { SettingsPage } from './components/SettingsPage';
 import { Login } from './components/Login';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { useAuth } from './contexts/AuthContext';
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('auth') === 'true');
+  const { loginWithCredentials, logout, isSubmitting, error, clearError, user } = useAuth();
   const [currentView, setCurrentView] = useState('home');
-
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-    localStorage.setItem('auth', 'true');
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('auth');
-    setCurrentView('home');
-  };
 
   const [isDarkMode, setIsDarkMode] = useState(
     () => localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
   );
+
+  const handleLogin = async (email: string, password: string) => {
+    clearError();
+    await loginWithCredentials(email, password);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setCurrentView('home');
+  };
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    setIsDarkMode(user.theme === 'dark');
+  }, [user]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -45,11 +53,18 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />;
-  }
-
   return (
+    <ProtectedRoute
+      fallback={
+        <Login
+          onLogin={handleLogin}
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
+          isLoading={isSubmitting}
+          error={error}
+        />
+      }
+    >
       <Layout 
         currentView={currentView} 
         onViewChange={setCurrentView}
@@ -84,6 +99,7 @@ export default function App() {
         <div className="p-8">View not found</div>
       )}
     </Layout>
+    </ProtectedRoute>
   );
 }
 
