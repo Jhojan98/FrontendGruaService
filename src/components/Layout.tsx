@@ -23,7 +23,6 @@ import {
 import { cn } from '../lib/utils';
 import { NotificationsPanel } from './NotificationsPanel';
 import { SimplifiedProfileMenu } from './SimplifiedProfileMenu';
-import type { AuthUser } from '../types';
 
 export const Layout = ({ 
   children, 
@@ -31,8 +30,7 @@ export const Layout = ({
   onViewChange,
   isDarkMode,
   setIsDarkMode,
-  onLogout,
-  currentUser,
+  onLogout
 }: { 
   children: React.ReactNode;
   currentView: string;
@@ -40,7 +38,6 @@ export const Layout = ({
   isDarkMode: boolean;
   setIsDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
   onLogout?: () => void;
-  currentUser: AuthUser | null;
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
@@ -102,7 +99,7 @@ export const Layout = ({
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
             </button>
-            <SimplifiedProfileMenu onLogout={onLogout} onViewChange={onViewChange} currentUser={currentUser} />
+            <SimplifiedProfileMenu onLogout={onLogout} onViewChange={onViewChange} />
           </div>
         </div>
       </header>

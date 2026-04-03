@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Info, AlertTriangle, UserPlus, Users, Car, Search, X, Plus, Minus, CheckCircle2 } from 'lucide-react';
 import { Button, Input, Select, Label } from './ui/Inputs';
 import { cn } from '../lib/utils';
-import { Client, Base } from '../types';
-import { createClient, createTrip, listClients, listFleet } from '../lib/api';
+import { Client, Base, DispatchFormData } from '../types';
+import { motion } from 'motion/react';
 
 export const DispatchForm = () => {
   const { t } = useTranslation();
@@ -18,91 +18,22 @@ export const DispatchForm = () => {
   const [vehicleType, setVehicleType] = useState<'client' | 'manual'>('manual');
   const [urgency, setUrgency] = useState<'normal' | 'high'>('normal');
   const [occupants, setOccupants] = useState(2);
-  const [baseId, setBaseId] = useState('');
-  const [originAddress, setOriginAddress] = useState('Main St. & 4th Ave, Portland, OR');
-  const [destinationAddress, setDestinationAddress] = useState('St. Jude Medical Center, OR');
-  const [distance, setDistance] = useState('0 km');
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientPhone, setNewClientPhone] = useState('');
-  const [newClientMembership, setNewClientMembership] = useState('Standard');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    Promise.all([listFleet(), listClients()])
-      .then(([fleet, clientsResponse]) => {
-        if (!mounted) {
-          return;
-        }
-        const derivedBases: Base[] = fleet.map((truck) => ({
-          id: truck.id,
-          name: `${truck.unitNumber} - ${truck.status}`,
-        }));
-        setBases(derivedBases);
-        setBaseId(derivedBases[0]?.id || '');
-        setClients(clientsResponse);
-      })
-      .catch((error) => {
-        if (!mounted) {
-          return;
-        }
-        setErrorMessage(error instanceof Error ? error.message : 'Could not load dispatch data');
-      });
-
-    return () => {
-      mounted = false;
-    };
+    fetch('/api/bases').then(res => res.json()).then(setBases);
+    fetch('/api/clients').then(res => res.json()).then(setClients);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage(null);
-
-    if (!originAddress.trim() || !destinationAddress.trim()) {
-      setErrorMessage('Origin and destination are required');
-      return;
-    }
-
     setLoading(true);
-    try {
-      let client = selectedClient;
-
-      if (clientType === 'new') {
-        if (!newClientName.trim() || !newClientPhone.trim()) {
-          throw new Error('Name and phone are required for a new client');
-        }
-        const created = await createClient({
-          name: newClientName.trim(),
-          phone: newClientPhone.trim(),
-          membership: newClientMembership,
-        });
-        setClients((previous) => [created, ...previous]);
-        client = created;
-      }
-
-      if (!client) {
-        throw new Error('Select a client before creating dispatch');
-      }
-
-      await createTrip({
-        clientId: client.id,
-        clientName: client.name,
-        originAddress: originAddress.trim(),
-        destinationAddress: destinationAddress.trim(),
-        distance: distance.trim() || '0 km',
-      });
-
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-      setSearchQuery('');
-      setShowClientList(false);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Could not create dispatch');
-    } finally {
-      setLoading(false);
-    }
+    // Simulate API call
+    await new Promise(r => setTimeout(r, 1500));
+    setLoading(false);
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 3000);
   };
 
   return (
@@ -116,12 +47,6 @@ export const DispatchForm = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-12">
-          {errorMessage ? (
-            <div className="rounded-lg border border-red-300/60 bg-red-100/70 px-3 py-2 text-sm text-red-800">
-              {errorMessage}
-            </div>
-          ) : null}
-
           {/* Service Information */}
           <section>
             <div className="flex items-center gap-2 mb-6">
@@ -131,7 +56,7 @@ export const DispatchForm = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <Label>{t('base_selection', 'Base Selection')}</Label>
-                <Select value={baseId} onChange={(e) => setBaseId(e.target.value)}>
+                <Select defaultValue="base-1">
                   {bases.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </Select>
               </div>
@@ -301,18 +226,19 @@ export const DispatchForm = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <Label>{t('full_name', 'Full Name')}</Label>
-                    <Input value={newClientName} onChange={(e) => setNewClientName(e.target.value)} placeholder={t('john_doe', 'John Doe')} />
+                    <Input placeholder={t('john_doe', 'John Doe')} />
                   </div>
                   <div>
                     <Label>{t('phone_number', 'Phone Number')}</Label>
-                    <Input value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} placeholder="(503) 000-0000" />
+                    <Input placeholder="(503) 000-0000" />
                   </div>
                   <div className="md:col-span-2">
                     <Label>{t('membership__optional', 'Membership (Optional)')}</Label>
-                    <Select value={newClientMembership} onChange={(e) => setNewClientMembership(e.target.value)}>
-                      <option value="Standard">{t('standard', 'Standard')}</option>
-                      <option value="Premium">{t('premium', 'Premium')}</option>
-                      <option value="Gold">{t('gold', 'Gold')}</option>
+                    <Select>
+                      <option>{t('none', 'None')}</option>
+                      <option>{t('standard', 'Standard')}</option>
+                      <option>{t('premium', 'Premium')}</option>
+                      <option>{t('gold', 'Gold')}</option>
                     </Select>
                   </div>
                 </div>
@@ -323,19 +249,15 @@ export const DispatchForm = () => {
                   <Label>{t('origin_address', 'Origin Address')}</Label>
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 shadow-[0_0_0_2px_var(--color-surface),0_0_0_4px_rgba(74,124,89,0.1)]" />
-                    <Input value={originAddress} onChange={(e) => setOriginAddress(e.target.value)} />
+                    <Input defaultValue="Main St. & 4th Ave, Portland, OR" />
                   </div>
                 </div>
                 <div>
                   <Label>{t('destination_address', 'Destination Address')}</Label>
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-tertiary flex-shrink-0 shadow-[0_0_0_2px_var(--color-surface),0_0_0_4px_rgba(112,92,48,0.1)]" />
-                    <Input value={destinationAddress} onChange={(e) => setDestinationAddress(e.target.value)} />
+                    <Input defaultValue="St. Jude Medical Center, OR" />
                   </div>
-                </div>
-                <div className="md:col-span-2">
-                  <Label>{t('distance', 'Distance')}</Label>
-                  <Input value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="0 km" />
                 </div>
               </div>
             </div>
