@@ -3,9 +3,33 @@ import { useTranslation } from 'react-i18next';
 import { Info, AlertTriangle, UserPlus, Users, Car, Search, X, Plus, Minus, CheckCircle2 } from 'lucide-react';
 import { Button, Input, Select, Label } from './ui/Inputs';
 import { cn } from '../lib/utils';
-import { Client, Base, DispatchFormData } from '../types';
+import { Base, Client, ClientVehicle } from '../types';
 import { motion } from 'motion/react';
-import { listClients } from '../lib/api';
+import {
+  createClient,
+  DISPATCH_PREFILL_CLIENT_ID_STORAGE_KEY,
+  listClients,
+  listClientVehicles,
+} from '../lib/api';
+
+type NewClientFieldErrors = {
+  name?: string;
+  phone?: string;
+  contactPerson?: string;
+  email?: string;
+};
+
+type ManualVehicleFieldErrors = {
+  year?: string;
+  make?: string;
+  model?: string;
+  color?: string;
+  plate?: string;
+};
+
+const PHONE_PATTERN = /^[+()\-\s0-9]{7,20}$/;
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const PLATE_PATTERN = /^[A-Za-z0-9\-\s]{4,12}$/;
 
 export const DispatchForm = () => {
   const { t } = useTranslation();
@@ -13,22 +37,214 @@ export const DispatchForm = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showClientList, setShowClientList] = useState(false);
+  const [showClientList, setShowClientList] = useState(true);
+  const [clientVehicles, setClientVehicles] = useState<ClientVehicle[]>([]);
+  const [loadingClientVehicles, setLoadingClientVehicles] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [clientType, setClientType] = useState<'existing' | 'new'>('existing');
   const [vehicleType, setVehicleType] = useState<'client' | 'manual'>('manual');
   const [urgency, setUrgency] = useState<'normal' | 'high'>('normal');
   const [occupants, setOccupants] = useState(2);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientContactPerson, setNewClientContactPerson] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientStatus, setNewClientStatus] = useState<'active' | 'inactive' | 'suspended'>('active');
+  const [newClientType, setNewClientType] = useState<'corporate' | 'individual'>('individual');
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [newClientError, setNewClientError] = useState<string | null>(null);
+  const [newClientFieldErrors, setNewClientFieldErrors] = useState<NewClientFieldErrors>({});
+  const [manualVehicle, setManualVehicle] = useState({
+    year: '',
+    make: '',
+    model: '',
+    color: '',
+    plate: '',
+  });
+  const [manualVehicleFieldErrors, setManualVehicleFieldErrors] = useState<ManualVehicleFieldErrors>({});
+  const [dispatchValidationError, setDispatchValidationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     fetch('/api/bases').then(res => res.json()).then(setBases);
-    listClients().then(setClients).catch(() => setClients([]));
+
+    listClients()
+      .then((loadedClients) => {
+        setClients(loadedClients);
+
+        const reviewedClientId = sessionStorage.getItem(DISPATCH_PREFILL_CLIENT_ID_STORAGE_KEY);
+        if (!reviewedClientId) {
+          return;
+        }
+
+        const reviewedClient = loadedClients.find((client) => client.id === reviewedClientId);
+        if (!reviewedClient) {
+          return;
+        }
+
+        setSelectedClient(reviewedClient);
+        setClientType('existing');
+        setVehicleType('client');
+        sessionStorage.removeItem(DISPATCH_PREFILL_CLIENT_ID_STORAGE_KEY);
+      })
+      .catch(() => setClients([]));
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (!selectedClient) {
+      setClientVehicles([]);
+      setSelectedVehicle(null);
+      return;
+    }
+
+    setLoadingClientVehicles(true);
+    listClientVehicles(selectedClient.id)
+      .then((vehicles) => {
+        setClientVehicles(vehicles);
+        setSelectedVehicle((current) => (current && vehicles.some((v) => v.id === current) ? current : null));
+      })
+      .catch(() => {
+        setClientVehicles([]);
+        setSelectedVehicle(null);
+      })
+      .finally(() => setLoadingClientVehicles(false));
+  }, [selectedClient]);
+
+  const handleCreateAndSelectClient = async () => {
+    const normalizedName = newClientName.trim();
+    const normalizedPhone = newClientPhone.trim();
+    const normalizedContact = newClientContactPerson.trim();
+    const normalizedEmail = newClientEmail.trim().toLowerCase();
+
+    const nextErrors: NewClientFieldErrors = {};
+    if (!normalizedName) {
+      nextErrors.name = 'Name is required.';
+    }
+    if (!normalizedPhone) {
+      nextErrors.phone = 'Phone is required.';
+    } else if (!PHONE_PATTERN.test(normalizedPhone)) {
+      nextErrors.phone = 'Phone must be 7-20 chars and only numbers, spaces, +, -, ().';
+    }
+    if (!normalizedContact) {
+      nextErrors.contactPerson = 'Contact person is required.';
+    }
+    if (!normalizedEmail) {
+      nextErrors.email = 'Email is required.';
+    } else if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      nextErrors.email = 'Invalid email format.';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setNewClientFieldErrors(nextErrors);
+      setNewClientError('Complete name, phone, contact person and email to continue.');
+      return;
+    }
+
+    setCreatingClient(true);
+    setNewClientError(null);
+    setNewClientFieldErrors({});
+    try {
+      const created = await createClient({
+        name: normalizedName,
+        phone: normalizedPhone,
+        status: newClientStatus,
+        contact_person: normalizedContact,
+        email: normalizedEmail,
+        client_type: newClientType,
+      });
+
+      setClients((prev) => [created, ...prev.filter((client) => client.id !== created.id)]);
+      setSelectedClient(created);
+      setClientType('existing');
+      setShowClientList(true);
+      setVehicleType('client');
+      setSearchQuery('');
+      setNewClientName('');
+      setNewClientPhone('');
+      setNewClientContactPerson('');
+      setNewClientEmail('');
+      setNewClientStatus('active');
+      setNewClientType('individual');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create client';
+      setNewClientError(message);
+    } finally {
+      setCreatingClient(false);
+    }
+  };
+
+  const filteredClients = clients.filter((client) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return true;
+    }
+    return (
+      client.name.toLowerCase().includes(query) ||
+      client.phone.toLowerCase().includes(query) ||
+      client.status.toLowerCase().includes(query)
+    );
+  });
+
+  const validateManualVehicle = (): boolean => {
+    const year = manualVehicle.year.trim();
+    const make = manualVehicle.make.trim();
+    const model = manualVehicle.model.trim();
+    const color = manualVehicle.color.trim();
+    const plate = manualVehicle.plate.trim();
+
+    const nextErrors: ManualVehicleFieldErrors = {};
+    const currentYear = new Date().getFullYear() + 1;
+    if (!year) {
+      nextErrors.year = 'Year is required.';
+    } else if (!/^\d{4}$/.test(year) || Number(year) < 1900 || Number(year) > currentYear) {
+      nextErrors.year = `Use a valid year between 1900 and ${currentYear}.`;
+    }
+    if (!make) {
+      nextErrors.make = 'Make is required.';
+    }
+    if (!model) {
+      nextErrors.model = 'Model is required.';
+    }
+    if (!color) {
+      nextErrors.color = 'Color is required.';
+    }
+    if (!plate) {
+      nextErrors.plate = 'Plate is required.';
+    } else if (!PLATE_PATTERN.test(plate)) {
+      nextErrors.plate = 'Plate must be 4-12 chars using letters, numbers, spaces or -.';
+    }
+
+    setManualVehicleFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+
+    if (clientType === 'existing' && !selectedClient) {
+      setDispatchValidationError('Select an existing client before creating dispatch.');
+      return;
+    }
+
+    if (vehicleType === 'client') {
+      if (selectedClient && clientVehicles.length > 0 && !selectedVehicle) {
+        setDispatchValidationError('Select one client vehicle or switch to manual entry.');
+        return;
+      }
+      if (selectedClient && clientVehicles.length === 0) {
+        setDispatchValidationError('Selected client has no vehicles. Use manual entry.');
+        return;
+      }
+      setManualVehicleFieldErrors({});
+    }
+
+    if (vehicleType === 'manual' && !validateManualVehicle()) {
+      setDispatchValidationError('Review manual vehicle details before continuing.');
+      return;
+    }
+
+    setDispatchValidationError(null);
     setLoading(true);
     // Simulate API call
     await new Promise(r => setTimeout(r, 1500));
@@ -142,7 +358,11 @@ export const DispatchForm = () => {
                 </button>
                 <button 
                   type="button" 
-                  onClick={() => setClientType('new')}
+                    onClick={() => {
+                      setClientType('new');
+                      setVehicleType('manual');
+                      setDispatchValidationError(null);
+                    }}
                   className={cn(
                     "px-4 py-2 text-[10px] font-bold rounded-md transition-all",
                     clientType === 'new' ? "bg-surface shadow-sm text-primary" : "text-on-surface-variant hover:bg-surface-container/50"
@@ -179,12 +399,13 @@ export const DispatchForm = () => {
                     
                     {showClientList && (
                       <div className="bg-surface border border-outline-variant/30 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                        {clients.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(client => (
+                        {filteredClients.map(client => (
                           <button
                             key={client.id}
                             type="button"
                             onClick={() => {
                               setSelectedClient(client);
+                              setVehicleType('client');
                               setShowClientList(false);
                               setSearchQuery('');
                             }}
@@ -227,19 +448,56 @@ export const DispatchForm = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <Label>{t('full_name', 'Full Name')}</Label>
-                    <Input placeholder={t('john_doe', 'John Doe')} />
+                    <Input placeholder={t('john_doe', 'John Doe')} value={newClientName} onChange={(e) => {
+                      setNewClientName(e.target.value);
+                      setNewClientFieldErrors((prev) => ({ ...prev, name: undefined }));
+                    }} />
+                    {newClientFieldErrors.name ? <p className="mt-1 text-xs text-error">{newClientFieldErrors.name}</p> : null}
                   </div>
                   <div>
                     <Label>{t('phone_number', 'Phone Number')}</Label>
-                    <Input placeholder="(503) 000-0000" />
+                    <Input placeholder="(503) 000-0000" value={newClientPhone} onChange={(e) => {
+                      setNewClientPhone(e.target.value);
+                      setNewClientFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                    }} />
+                    {newClientFieldErrors.phone ? <p className="mt-1 text-xs text-error">{newClientFieldErrors.phone}</p> : null}
+                  </div>
+                  <div>
+                    <Label>{t('contact_person', 'Contact Person')}</Label>
+                    <Input placeholder={t('john_doe', 'John Doe')} value={newClientContactPerson} onChange={(e) => {
+                      setNewClientContactPerson(e.target.value);
+                      setNewClientFieldErrors((prev) => ({ ...prev, contactPerson: undefined }));
+                    }} />
+                    {newClientFieldErrors.contactPerson ? <p className="mt-1 text-xs text-error">{newClientFieldErrors.contactPerson}</p> : null}
+                  </div>
+                  <div>
+                    <Label>{t('email_address', 'Email Address')}</Label>
+                    <Input placeholder="cliente@empresa.com" value={newClientEmail} onChange={(e) => {
+                      setNewClientEmail(e.target.value);
+                      setNewClientFieldErrors((prev) => ({ ...prev, email: undefined }));
+                    }} />
+                    {newClientFieldErrors.email ? <p className="mt-1 text-xs text-error">{newClientFieldErrors.email}</p> : null}
                   </div>
                   <div className="md:col-span-2">
                     <Label>{t('status', 'Status')}</Label>
-                    <Select>
-                      <option>active</option>
-                      <option>inactive</option>
-                      <option>suspended</option>
+                    <Select value={newClientStatus} onChange={(e) => setNewClientStatus(e.target.value as 'active' | 'inactive' | 'suspended')}>
+                      <option value="active">active</option>
+                      <option value="inactive">inactive</option>
+                      <option value="suspended">suspended</option>
                     </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>{t('client_type', 'Client Type')}</Label>
+                    <Select value={newClientType} onChange={(e) => setNewClientType(e.target.value as 'corporate' | 'individual')}>
+                      <option value="corporate">corporate</option>
+                      <option value="individual">individual</option>
+                    </Select>
+                  </div>
+                  {newClientError ? <p className="md:col-span-2 text-xs text-error">{newClientError}</p> : null}
+                  <div className="md:col-span-2">
+                    <Button type="button" onClick={() => { void handleCreateAndSelectClient(); }} disabled={creatingClient} className="h-12 w-full md:w-auto">
+                      {creatingClient ? 'Saving client...' : 'Save Client and Use in Dispatch'}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -296,42 +554,109 @@ export const DispatchForm = () => {
 
             <div className="space-y-6">
               {vehicleType === 'client' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button 
-                    type="button" 
-                    onClick={() => setSelectedVehicle('v1')}
-                    className={cn(
-                      "p-4 rounded-xl text-left shadow-sm transition-all border-2",
-                      selectedVehicle === 'v1' ? "bg-surface border-primary" : "bg-surface-container-low border-outline-variant/30 hover:border-primary/50"
-                    )}
-                  >
-                    <p className="font-bold text-sm">{t('2022_ford_f_150', '2022 Ford F-150')}</p>
-                    <p className="text-[10px] text-on-surface-variant font-semibold">{t('silver___7a9_x42', 'Silver • 7A9-X42')}</p>
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setSelectedVehicle('v2')}
-                    className={cn(
-                      "p-4 rounded-xl text-left shadow-sm transition-all border-2",
-                      selectedVehicle === 'v2' ? "bg-surface border-primary" : "bg-surface-container-low border-outline-variant/30 hover:border-primary/50"
-                    )}
-                  >
-                    <p className="font-bold text-sm">{t('2019_tesla_model_3', '2019 Tesla Model 3')}</p>
-                    <p className="text-[10px] text-on-surface-variant font-semibold">{t('white___b3k_l99', 'White • B3K-L99')}</p>
-                  </button>
+                <div className="space-y-4">
+                  {!selectedClient ? (
+                    <div className="p-4 rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low text-sm text-on-surface-variant">
+                      Select an existing client to load associated vehicles.
+                    </div>
+                  ) : loadingClientVehicles ? (
+                    <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-low text-sm text-on-surface-variant">
+                      Loading client vehicles...
+                    </div>
+                  ) : clientVehicles.length === 0 ? (
+                    <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-low text-sm text-on-surface-variant">
+                      This client has no vehicles yet. You can switch to Manual Entry.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {clientVehicles.map((vehicle) => {
+                        const vehicleLabel = `${vehicle.make} ${vehicle.model}`.trim();
+                        return (
+                          <button
+                            key={vehicle.id}
+                            type="button"
+                            onClick={() => setSelectedVehicle(vehicle.id)}
+                            className={cn(
+                              "p-4 rounded-xl text-left shadow-sm transition-all border-2",
+                              selectedVehicle === vehicle.id ? "bg-surface border-primary" : "bg-surface-container-low border-outline-variant/30 hover:border-primary/50"
+                            )}
+                          >
+                            <p className="font-bold text-sm">{vehicleLabel}</p>
+                            <p className="text-[10px] text-on-surface-variant font-semibold">
+                              {vehicle.is_active ? 'Active' : 'Inactive'} • {vehicle.license_plate}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label>{t('year___make___model', 'Year / Make / Model')}</Label>
-                    <Input placeholder={t('2022_ford_f_150', '2022 Ford F-150')} />
+                    <Label>{t('vehicle_year', 'Vehicle Year')}</Label>
+                    <Input
+                      placeholder="2022"
+                      value={manualVehicle.year}
+                      onChange={(e) => {
+                        setManualVehicle((prev) => ({ ...prev, year: e.target.value }));
+                        setManualVehicleFieldErrors((prev) => ({ ...prev, year: undefined }));
+                      }}
+                    />
+                    {manualVehicleFieldErrors.year ? <p className="mt-1 text-xs text-error">{manualVehicleFieldErrors.year}</p> : null}
                   </div>
                   <div>
-                    <Label>{t('color___plate', 'Color / Plate')}</Label>
-                    <Input placeholder={t('silver___7a9_x42', 'Silver / 7A9-X42')} />
+                    <Label>{t('vehicle_make', 'Make')}</Label>
+                    <Input
+                      placeholder="Ford"
+                      value={manualVehicle.make}
+                      onChange={(e) => {
+                        setManualVehicle((prev) => ({ ...prev, make: e.target.value }));
+                        setManualVehicleFieldErrors((prev) => ({ ...prev, make: undefined }));
+                      }}
+                    />
+                    {manualVehicleFieldErrors.make ? <p className="mt-1 text-xs text-error">{manualVehicleFieldErrors.make}</p> : null}
+                  </div>
+                  <div>
+                    <Label>{t('vehicle_model', 'Model')}</Label>
+                    <Input
+                      placeholder="F-150"
+                      value={manualVehicle.model}
+                      onChange={(e) => {
+                        setManualVehicle((prev) => ({ ...prev, model: e.target.value }));
+                        setManualVehicleFieldErrors((prev) => ({ ...prev, model: undefined }));
+                      }}
+                    />
+                    {manualVehicleFieldErrors.model ? <p className="mt-1 text-xs text-error">{manualVehicleFieldErrors.model}</p> : null}
+                  </div>
+                  <div>
+                    <Label>{t('vehicle_color', 'Color')}</Label>
+                    <Input
+                      placeholder="Silver"
+                      value={manualVehicle.color}
+                      onChange={(e) => {
+                        setManualVehicle((prev) => ({ ...prev, color: e.target.value }));
+                        setManualVehicleFieldErrors((prev) => ({ ...prev, color: undefined }));
+                      }}
+                    />
+                    {manualVehicleFieldErrors.color ? <p className="mt-1 text-xs text-error">{manualVehicleFieldErrors.color}</p> : null}
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>{t('license_plate', 'License Plate')}</Label>
+                    <Input
+                      placeholder="7A9-X42"
+                      value={manualVehicle.plate}
+                      onChange={(e) => {
+                        setManualVehicle((prev) => ({ ...prev, plate: e.target.value.toUpperCase() }));
+                        setManualVehicleFieldErrors((prev) => ({ ...prev, plate: undefined }));
+                      }}
+                    />
+                    {manualVehicleFieldErrors.plate ? <p className="mt-1 text-xs text-error">{manualVehicleFieldErrors.plate}</p> : null}
                   </div>
                 </div>
               )}
+
+              {dispatchValidationError ? <p className="text-xs text-error">{dispatchValidationError}</p> : null}
 
               <div className="grid grid-cols-1 gap-6">
                 <div className="md:col-span-2">

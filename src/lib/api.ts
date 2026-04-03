@@ -16,6 +16,7 @@ import {
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 const TOKEN_STORAGE_KEY = 'auth_token';
 export const SELECTED_CLIENT_ID_STORAGE_KEY = 'selected_client_id';
+export const DISPATCH_PREFILL_CLIENT_ID_STORAGE_KEY = 'dispatch_prefill_client_id';
 
 function buildHeaders(contentType: string | null = 'application/json'): HeadersInit {
   const headers: Record<string, string> = {};

@@ -4,7 +4,12 @@ import { Search, ChevronDown, AlignLeft, AtSign, Phone, Calendar, CreditCard, Cl
 import { AddClientForm } from './AddClientForm.tsx';
 import { EditClientForm } from './EditClientForm';
 import { ClientDetails } from './ClientDetails.tsx';
-import { deleteClient, listClients, SELECTED_CLIENT_ID_STORAGE_KEY } from '../../lib/api';
+import {
+  deleteClient,
+  DISPATCH_PREFILL_CLIENT_ID_STORAGE_KEY,
+  listClients,
+  SELECTED_CLIENT_ID_STORAGE_KEY,
+} from '../../lib/api';
 import { Client } from '../../types';
 
 export const ClientManagement: React.FC<{ currentView?: string; onViewChange?: (v: string) => void }> = ({ currentView, onViewChange }) => {
@@ -101,7 +106,13 @@ export const ClientManagement: React.FC<{ currentView?: string; onViewChange?: (
     return <ClientDetails 
       onBack={() => onViewChange?.('clients')} 
       onEdit={() => onViewChange?.('clients/edit-client')}
-      onNewDispatch={() => onViewChange?.('live-dispatch')}
+      onNewDispatch={() => {
+        const selectedClientId = sessionStorage.getItem(SELECTED_CLIENT_ID_STORAGE_KEY);
+        if (selectedClientId) {
+          sessionStorage.setItem(DISPATCH_PREFILL_CLIENT_ID_STORAGE_KEY, selectedClientId);
+        }
+        onViewChange?.('live-dispatch');
+      }}
     />;
   }
 
