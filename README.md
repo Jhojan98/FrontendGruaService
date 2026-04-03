@@ -11,6 +11,7 @@ This repository contains the frontend React application for the **Terra Towing D
    `npm install`
 2. Run the app:
    `npm run dev`
+   yes
 
 ---
 
