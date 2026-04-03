@@ -8,7 +8,7 @@ import { Layout } from './components/Layout';
 import { MapSection } from './components/MapSection';
 import { DispatchForm } from './components/DispatchForm';
 import { TripsHistory } from './components/TripsHistory';
-import { ClientManagement } from './components/ClientManagement';
+import { ClientManagement } from './components/clients/ClientManagement';
 import FleetAnalytics from './components/FleetAnalytics';
 import { FleetManagement } from './components/FleetManagement';
 import { HomeDashboard } from './components/HomeDashboard';
@@ -70,8 +70,8 @@ export default function App() {
         </div>
       ) : currentView === 'history' ? (
         <TripsHistory />
-      ) : currentView === 'clients' ? (
-        <ClientManagement />
+      ) : currentView.startsWith('clients') ? (
+        <ClientManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView === 'fleet' ? (
         <FleetManagement />
       ) : currentView === 'analytics' ? (

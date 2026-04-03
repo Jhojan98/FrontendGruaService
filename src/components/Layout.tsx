@@ -71,9 +71,18 @@ export const Layout = ({
               </div>
             </div>
             <nav className="flex items-center gap-1 md:gap-2 text-xs font-medium text-on-surface-variant">
-              <span className="hidden sm:inline">{t("common.home")}</span>
-              <ChevronRight className="w-3.5 h-3.5 hidden sm:block" />
-              <span className="text-primary font-bold capitalize">{currentView.replace('-', ' ')}</span>
+              <span className="hidden sm:inline cursor-pointer hover:underline" onClick={() => onViewChange('home')}>{t("common.home", "Home")}</span>
+              {currentView !== 'home' && currentView.split('/').map((part, index, array) => (
+                <React.Fragment key={index}>
+                  <ChevronRight className="w-3.5 h-3.5 hidden sm:block" />
+                  <span 
+                    className={`capitalize ${index === array.length - 1 ? 'text-primary font-bold' : 'hidden sm:inline cursor-pointer hover:underline'}`}
+                    onClick={() => index < array.length - 1 ? onViewChange(array.slice(0, index + 1).join('/')) : undefined}
+                  >
+                    {part.replace('-', ' ')}
+                  </span>
+                </React.Fragment>
+              ))}
             </nav>
           </div>
           
@@ -141,7 +150,7 @@ export const Layout = ({
             <SidebarItem 
               icon={<Users className="w-5 h-5" />} 
               label={t("nav.clients")} 
-              active={currentView === 'clients'}
+              active={currentView.startsWith('clients')}
               onClick={() => onViewChange('clients')}
             />
             <SidebarItem 
@@ -207,7 +216,7 @@ export const Layout = ({
         <MobileNavItem 
           icon={<Users className="w-6 h-6 pointer-events-none" />} 
           label={t("nav.clients")} 
-          active={currentView === 'clients'} 
+          active={currentView.startsWith('clients')} 
           onClick={() => onViewChange('clients')}
         />
         <MobileNavItem 
@@ -266,7 +275,7 @@ export const Layout = ({
                   <SidebarItem 
                     icon={<Users className="w-5 h-5" />} 
                     label={t("nav.clients")} 
-                    active={currentView === 'clients'}
+                    active={currentView.startsWith('clients')}
                     onClick={() => { onViewChange('clients'); setIsMobileMenuOpen(false); }}
                   />
                   <SidebarItem 

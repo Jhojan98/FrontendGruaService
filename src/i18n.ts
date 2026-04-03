@@ -407,7 +407,95 @@ const en = {
     "next": "Next",
     "completed_trips": "Completed Trips",
     "avg__dispatch_time": "Avg. Dispatch Time"
-
+,
+    "edit_client": {
+        "title": "Edit Client Profile",
+        "breadcrumbs": {
+            "clients": "Clients",
+            "edit_profile": "Edit Profile"
+        },
+        "save_changes": "Save Changes",
+        "cancel": "Cancel",
+        "section": {
+            "client_info": "Client Information",
+            "billing": "Billing & Address",
+            "vehicle_fleet": "Vehicle Fleet",
+            "account_health": "Account Health"
+        },
+        "profile_photo_label": "Profile Photo / Brand Logo",
+        "change_logo": "Change Logo",
+        "logo_hint": "Recommended: Square image, max 2MB (JPG, PNG). Used for dispatch dashboard and invoices.",
+        "status_label": "Client Status",
+        "status": {
+            "active": "Active",
+            "inactive": "Inactive",
+            "suspended": "Suspended"
+        },
+        "type": {
+            "corporate": "Corporate Account",
+            "individual": "Individual Customer"
+        },
+        "company_name": "Company / Full Name",
+        "contact_person": "Contact Person",
+        "email_address": "Email Address",
+        "phone_number": "Phone Number",
+        "street_address": "Street Address",
+        "city": "City",
+        "state": "State / Province",
+        "zip_code": "ZIP / Postal Code",
+        "payment_terms": "Payment Terms",
+        "vehicle_fleet_desc": "Manage assigned vehicles for this client.",
+        "add_vehicle": "Add Vehicle",
+        "make": "Make",
+        "make_placeholder": "e.g. Ford",
+        "model": "Model",
+        "model_placeholder": "e.g. F-150",
+        "license_plate": "License Plate",
+        "license_plate_placeholder": "e.g. ABC 123",
+        "add": "Add",
+        "new_vehicle": "New Vehicle",
+        "save_vehicle": "Save Vehicle",
+        "health": {
+            "payment_history": "Excellent payment history",
+            "contact_verified": "Primary contact verified",
+            "billing_matches": "Billing address matches registration"
+        }
+    },
+    "add_client": {
+        "title": "Onboard New Partner",
+        "save_client": "Save Client",
+        "cancel": "Cancel",
+        "corporate": "Corporate",
+        "individual": "Individual",
+        "section": {
+            "client_info": "Client Information",
+            "billing": "Billing & Financials",
+            "vehicle_fleet": "Vehicle Fleet",
+            "onboarding_guide": "Onboarding Guide"
+        },
+        "profile_photo_label": "Profile Photo / Brand Logo",
+        "upload_new": "Upload New",
+        "logo_hint": "JPG, PNG or GIF. Max size 2MB.",
+        "company_name": "Company Name",
+        "contact_person": "Contact Person",
+        "email_address": "Email Address",
+        "phone_number": "Phone Number",
+        "street_address": "Street Address",
+        "city": "City",
+        "state": "State",
+        "zip_code": "ZIP Code",
+        "payment_terms": "Payment Terms",
+        "vehicle_fleet_desc": "Register initial vehicles for this client to speed up future dispatching.",
+        "add_vehicle": "Add Vehicle",
+        "make": "Make",
+        "model": "Model",
+        "license_plate": "License Plate",
+        "add": "Add",
+        "new_vehicle": "New Vehicle Detail",
+        "save_vehicle": "Save Vehicle",
+        "guide_contact": "Complete contact details ensure timely billing.",
+        "guide_cod": "COD clients require card-on-file in step 2."
+    }
   }
 };
 
@@ -817,7 +905,95 @@ const es = {
     "next": "Siguiente",
     "completed_trips": "Viajes Completados",
     "avg__dispatch_time": "Tiempo de Despacho Promedio"
-
+,
+    "edit_client": {
+        "title": "Editar Perfil de Cliente",
+        "breadcrumbs": {
+            "clients": "Clientes",
+            "edit_profile": "Editar Perfil"
+        },
+        "save_changes": "Guardar Cambios",
+        "cancel": "Cancelar",
+        "section": {
+            "client_info": "Información del Cliente",
+            "billing": "Facturación y Dirección",
+            "vehicle_fleet": "Flota de Vehículos",
+            "account_health": "Estado de la Cuenta"
+        },
+        "profile_photo_label": "Foto de Perfil / Logo de Marca",
+        "change_logo": "Cambiar Logo",
+        "logo_hint": "Recomendado: Imagen cuadrada, máx 2MB (JPG, PNG). Usada para el panel y facturas.",
+        "status_label": "Estado del Cliente",
+        "status": {
+            "active": "Activo",
+            "inactive": "Inactivo",
+            "suspended": "Suspendido"
+        },
+        "type": {
+            "corporate": "Cuenta Corporativa",
+            "individual": "Cliente Individual"
+        },
+        "company_name": "Empresa / Nombre Completo",
+        "contact_person": "Persona de Contacto",
+        "email_address": "Dirección de Correo",
+        "phone_number": "Número de Teléfono",
+        "street_address": "Dirección",
+        "city": "Ciudad",
+        "state": "Estado / Provincia",
+        "zip_code": "Código Postal",
+        "payment_terms": "Términos de Pago",
+        "vehicle_fleet_desc": "Administre los vehículos asignados a este cliente.",
+        "add_vehicle": "Agregar Vehículo",
+        "make": "Marca",
+        "make_placeholder": "ej. Ford",
+        "model": "Modelo",
+        "model_placeholder": "ej. F-150",
+        "license_plate": "Placa",
+        "license_plate_placeholder": "ej. ABC 123",
+        "add": "Agregar",
+        "new_vehicle": "Nuevo Vehículo",
+        "save_vehicle": "Guardar Vehículo",
+        "health": {
+            "payment_history": "Excelente historial de pagos",
+            "contact_verified": "Contacto principal verificado",
+            "billing_matches": "La dirección coincide con el registro"
+        }
+    },
+    "add_client": {
+        "title": "Registrar Nuevo Socio",
+        "save_client": "Guardar Cliente",
+        "cancel": "Cancelar",
+        "corporate": "Corporativo",
+        "individual": "Individual",
+        "section": {
+            "client_info": "Información del Cliente",
+            "billing": "Facturación y Finanzas",
+            "vehicle_fleet": "Flota de Vehículos",
+            "onboarding_guide": "Guía de Registro"
+        },
+        "profile_photo_label": "Foto de Perfil / Logo de Marca",
+        "upload_new": "Subir Nuevo",
+        "logo_hint": "JPG, PNG o GIF. Tamaño max 2MB.",
+        "company_name": "Nombre de la Empresa",
+        "contact_person": "Persona de Contacto",
+        "email_address": "Dirección de Correo",
+        "phone_number": "Número de Teléfono",
+        "street_address": "Dirección",
+        "city": "Ciudad",
+        "state": "Estado / Provincia",
+        "zip_code": "Código Postal",
+        "payment_terms": "Términos de Pago",
+        "vehicle_fleet_desc": "Registre los vehículos iniciales para agilizar futuros despachos.",
+        "add_vehicle": "Agregar Vehículo",
+        "make": "Marca",
+        "model": "Modelo",
+        "license_plate": "Placa",
+        "add": "Agregar",
+        "new_vehicle": "Detalles del Nuevo Vehículo",
+        "save_vehicle": "Guardar Vehículo",
+        "guide_contact": "Los detalles de contacto aseguran una facturación puntual.",
+        "guide_cod": "Clientes con pago contra entrega requieren tarjeta registrada."
+    }
   }
 };
 

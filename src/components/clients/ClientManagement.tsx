@@ -1,9 +1,32 @@
 import { useTranslation } from 'react-i18next';
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, ChevronDown, AlignLeft, AtSign, Phone, Calendar, CreditCard, Clock, ArrowDown, UserPlus } from 'lucide-react';
+import { AddClientForm } from './AddClientForm.tsx';
+import { EditClientForm } from './EditClientForm';
+import { ClientDetails } from './ClientDetails.tsx';
 
-export const ClientManagement: React.FC = () => {
+export const ClientManagement: React.FC<{ currentView?: string; onViewChange?: (v: string) => void }> = ({ currentView, onViewChange }) => {
   const { t } = useTranslation();
+  const isAddingClient = currentView === 'clients/add-client';
+  const isEditingClient = currentView === 'clients/edit-client';
+  const isViewingClientDetails = currentView === 'clients/client-details';
+
+  if (isViewingClientDetails) {
+    return <ClientDetails 
+      onBack={() => onViewChange?.('clients')} 
+      onEdit={() => onViewChange?.('clients/edit-client')}
+      onNewDispatch={() => onViewChange?.('live-dispatch')}
+    />;
+  }
+
+  if (isAddingClient) {
+    return <AddClientForm onCancel={() => onViewChange?.('clients')} />;
+  }
+
+  if (isEditingClient) {
+    return <EditClientForm onCancel={() => onViewChange?.('clients')} onSave={() => onViewChange?.('clients')} />;
+  }
+
   return (
     <div className="h-full overflow-y-auto p-6 md:p-8 bg-background">
       {/* Page Header Area */}
@@ -12,7 +35,10 @@ export const ClientManagement: React.FC = () => {
           <h1 className="text-3xl font-extrabold text-primary mb-2">{t("clients.title", "Client Management")}</h1>
           <p className="text-on-surface-variant max-w-2xl text-sm">{t("clients.subtitle", "Manage your corporate accounts and regular customers.")} Track engagement, billing status, and service history across your entire network.</p>
         </div>
-        <button className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all active:scale-95 text-sm">
+        <button 
+          onClick={() => onViewChange?.('clients/add-client')}
+          className="bg-primary text-on-primary px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all active:scale-95 text-sm"
+        >
           <UserPlus className="w-4 h-4" />
           <span>{t("clients.add", "Add New Client")}</span>
         </button>
@@ -73,8 +99,8 @@ export const ClientManagement: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-5">
-              <button className="text-primary font-bold text-xs border border-primary/30 hover:border-primary px-4 py-1.5 rounded-lg hover:bg-primary/5 transition-colors">{t('view_details', 'View Details')}</button>
-              <button className="text-on-surface-variant font-bold text-xs px-4 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors">{t('edit', 'Edit')}</button>
+              <button onClick={() => onViewChange?.('clients/client-details')} className="text-primary font-bold text-xs border border-primary/30 hover:border-primary px-4 py-1.5 rounded-lg hover:bg-primary/5 transition-colors">{t('view_details', 'View Details')}</button>
+              <button onClick={() => onViewChange?.('clients/edit-client')} className="text-on-surface-variant font-bold text-xs px-4 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors">{t('edit', 'Edit')}</button>
             </div>
           </div>
         </div>
@@ -105,8 +131,8 @@ export const ClientManagement: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-5">
-              <button className="text-primary font-bold text-xs border border-primary/30 hover:border-primary px-4 py-1.5 rounded-lg hover:bg-primary/5 transition-colors">{t('view_details', 'View Details')}</button>
-              <button className="text-on-surface-variant font-bold text-xs px-4 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors">{t('edit', 'Edit')}</button>
+              <button onClick={() => onViewChange?.('clients/client-details')} className="text-primary font-bold text-xs border border-primary/30 hover:border-primary px-4 py-1.5 rounded-lg hover:bg-primary/5 transition-colors">{t('view_details', 'View Details')}</button>
+              <button onClick={() => onViewChange?.('clients/edit-client')} className="text-on-surface-variant font-bold text-xs px-4 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors">{t('edit', 'Edit')}</button>
             </div>
           </div>
         </div>
@@ -145,8 +171,8 @@ export const ClientManagement: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-5">
-              <button className="text-primary font-bold text-xs border border-primary/30 hover:border-primary px-4 py-1.5 rounded-lg hover:bg-primary/5 transition-colors">{t('view_details', 'View Details')}</button>
-              <button className="text-on-surface-variant font-bold text-xs px-4 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors">{t('edit', 'Edit')}</button>
+              <button onClick={() => onViewChange?.('clients/client-details')} className="text-primary font-bold text-xs border border-primary/30 hover:border-primary px-4 py-1.5 rounded-lg hover:bg-primary/5 transition-colors">{t('view_details', 'View Details')}</button>
+              <button onClick={() => onViewChange?.('clients/edit-client')} className="text-on-surface-variant font-bold text-xs px-4 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors">{t('edit', 'Edit')}</button>
             </div>
           </div>
         </div>
