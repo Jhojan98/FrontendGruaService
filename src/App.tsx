@@ -11,7 +11,7 @@ import { TripsHistory } from './components/TripsHistory';
 import { ClientManagement } from './components/clients/ClientManagement';
 import { DriverManagement } from './components/drivers/DriverManagement';
 import FleetAnalytics from './components/FleetAnalytics';
-import { FleetManagement } from './components/FleetManagement';
+import { FleetManagement } from './components/fleet/FleetManagement';
 import { HomeDashboard } from './components/HomeDashboard';
 import { SupportCenter } from './components/SupportCenter';
 import { SettingsPage } from './components/SettingsPage';
@@ -75,8 +75,8 @@ export default function App() {
         <ClientManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView.startsWith('drivers') ? (
         <DriverManagement currentView={currentView} onViewChange={setCurrentView} />
-      ) : currentView === 'fleet' ? (
-        <FleetManagement />
+      ) : currentView.startsWith('fleet') ? (
+        <FleetManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView === 'analytics' ? (
         <FleetAnalytics />
       ) : currentView === 'settings' ? (

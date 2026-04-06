@@ -163,7 +163,7 @@ export const Layout = ({
             <SidebarItem 
               icon={<Truck className="w-5 h-5" />} 
               label={t("nav.towTrucks")} 
-              active={currentView === 'fleet'}
+              active={currentView.startsWith('fleet')}
               onClick={() => onViewChange('fleet')}
             />
             <SidebarItem 
@@ -235,7 +235,7 @@ export const Layout = ({
         <MobileNavItem 
           icon={<Truck className="w-6 h-6 pointer-events-none" />} 
           label={t("nav.towTrucks")} 
-          active={currentView === 'fleet'}
+          active={currentView.startsWith('fleet')}
           onClick={() => onViewChange('fleet')}
         />
       </nav>
@@ -300,7 +300,7 @@ export const Layout = ({
                   <SidebarItem 
                     icon={<Truck className="w-5 h-5" />} 
                     label={t("nav.towTrucks")} 
-                    active={currentView === 'fleet'}
+                    active={currentView.startsWith('fleet')}
                     onClick={() => { onViewChange('fleet'); setIsMobileMenuOpen(false); }}
                   />
                 </nav>
