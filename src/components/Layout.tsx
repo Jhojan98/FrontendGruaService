@@ -145,7 +145,7 @@ export const Layout = ({
             <SidebarItem 
               icon={<History className="w-5 h-5" />} 
               label={t("nav.tripsHistory")} 
-              active={currentView === 'history'} 
+              active={currentView.startsWith('history')} 
               onClick={() => onViewChange('history')}
             />
             <SidebarItem 
@@ -178,7 +178,7 @@ export const Layout = ({
             <SidebarItem 
               icon={<Settings className="w-5 h-5" />} 
               label={t("nav.settings")} 
-              active={currentView === 'settings'}
+              active={currentView.startsWith('settings')}
               onClick={() => onViewChange('settings')}
             />
             <SidebarItem 
@@ -217,7 +217,7 @@ export const Layout = ({
         <MobileNavItem 
           icon={<History className="w-6 h-6 pointer-events-none" />} 
           label={t("nav.tripsHistory")} 
-          active={currentView === 'history'} 
+          active={currentView.startsWith('history')} 
           onClick={() => onViewChange('history')}
         />
         <MobileNavItem 
@@ -282,7 +282,7 @@ export const Layout = ({
                   <SidebarItem 
                     icon={<History className="w-5 h-5" />} 
                     label={t("nav.tripsHistory")} 
-                    active={currentView === 'history'} 
+                    active={currentView.startsWith('history')} 
                     onClick={() => { onViewChange('history'); setIsMobileMenuOpen(false); }}
                   />
                   <SidebarItem 
@@ -324,7 +324,7 @@ export const Layout = ({
                   <SidebarItem 
                     icon={<Settings className="w-5 h-5" />} 
                     label={t("nav.settings")} 
-                    active={currentView === 'settings'}
+                    active={currentView.startsWith('settings')}
                     onClick={() => { onViewChange('settings'); setIsMobileMenuOpen(false); }}
                   />
                   <SidebarItem 

@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { MapSection } from './components/MapSection';
 import { DispatchForm } from './components/DispatchForm';
-import { TripsHistory } from './components/TripsHistory';
+import { HistoryManagement } from './components/history/HistoryManagement';
 import { ClientManagement } from './components/clients/ClientManagement';
 import { DriverManagement } from './components/drivers/DriverManagement';
 import FleetAnalytics from './components/FleetAnalytics';
@@ -69,8 +69,8 @@ export default function App() {
             <DispatchForm />
           </div>
         </div>
-      ) : currentView === 'history' ? (
-        <TripsHistory />
+      ) : currentView.startsWith('history') ? (
+        <HistoryManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView.startsWith('clients') ? (
         <ClientManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView.startsWith('drivers') ? (
@@ -79,8 +79,13 @@ export default function App() {
         <FleetManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView === 'analytics' ? (
         <FleetAnalytics />
-      ) : currentView === 'settings' ? (
-        <SettingsPage isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+      ) : currentView.startsWith('settings') ? (
+        <SettingsPage
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
+          currentView={currentView}
+          onViewChange={setCurrentView}
+        />
       ) : currentView === 'support' ? (
         <SupportCenter />
       ) : (

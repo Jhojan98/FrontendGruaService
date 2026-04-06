@@ -9,16 +9,31 @@ import {
   BellRing, 
   Mail, 
   MessageSquare, 
-  AppWindow 
+  AppWindow,
+  ArrowRight,
+  ReceiptText,
+  UsersRound,
 } from 'lucide-react';
+import { TariffBillingAdminPanel } from './settings/TariffBillingAdminPanel';
+import { InternalUserManagement } from './settings/InternalUserManagement';
 
 export interface SettingsPageProps {
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
+  currentView?: string;
+  onViewChange?: (view: string) => void;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDarkMode }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDarkMode, currentView = 'settings', onViewChange }) => {
   const { t, i18n } = useTranslation();
+
+  if (currentView === 'settings/tariff-billing') {
+    return <TariffBillingAdminPanel onViewChange={onViewChange} />;
+  }
+
+  if (currentView === 'settings/internal-users') {
+    return <InternalUserManagement onViewChange={onViewChange} />;
+  }
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLang = e.target.value;
@@ -31,6 +46,33 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
       <div className="mb-10">
         <h2 className="text-4xl font-headline font-bold text-on-background mb-2">{t('settings.title')}</h2>
         <p className="text-on-surface-variant font-body">{t('settings.subtitle')}</p>
+      </div>
+
+      <div className="bg-surface-container-low rounded-xl p-6 mb-8 border border-outline-variant/30 shadow-sm">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h3 className="text-xl font-headline font-bold text-on-surface">Administration</h3>
+            <p className="text-sm text-on-surface-variant mt-1">Manage billing configuration and internal user access from dedicated panels.</p>
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={() => onViewChange?.('settings/tariff-billing')}
+              className="px-4 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2"
+            >
+              <ReceiptText className="w-4 h-4" />
+              Tariff & Billing Admin
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onViewChange?.('settings/internal-users')}
+              className="px-4 py-2.5 rounded-xl border border-outline-variant text-on-surface font-bold text-sm hover:bg-surface-container transition-colors flex items-center gap-2"
+            >
+              <UsersRound className="w-4 h-4" />
+              Internal User Management
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-12 gap-8">
