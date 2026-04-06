@@ -12,6 +12,7 @@ import {
   Sun,
   Bell, 
   Tractor,
+  UserCog,
   Plus,
   PieChart,
   Home,
@@ -154,6 +155,12 @@ export const Layout = ({
               onClick={() => onViewChange('clients')}
             />
             <SidebarItem 
+              icon={<UserCog className="w-5 h-5" />} 
+              label={t('drivers', 'Drivers')} 
+              active={currentView.startsWith('drivers')}
+              onClick={() => onViewChange('drivers')}
+            />
+            <SidebarItem 
               icon={<Truck className="w-5 h-5" />} 
               label={t("nav.towTrucks")} 
               active={currentView === 'fleet'}
@@ -220,6 +227,12 @@ export const Layout = ({
           onClick={() => onViewChange('clients')}
         />
         <MobileNavItem 
+          icon={<UserCog className="w-6 h-6 pointer-events-none" />} 
+          label={t('drivers', 'Drivers')} 
+          active={currentView.startsWith('drivers')}
+          onClick={() => onViewChange('drivers')}
+        />
+        <MobileNavItem 
           icon={<Truck className="w-6 h-6 pointer-events-none" />} 
           label={t("nav.towTrucks")} 
           active={currentView === 'fleet'}
@@ -277,6 +290,12 @@ export const Layout = ({
                     label={t("nav.clients")} 
                     active={currentView.startsWith('clients')}
                     onClick={() => { onViewChange('clients'); setIsMobileMenuOpen(false); }}
+                  />
+                  <SidebarItem 
+                    icon={<UserCog className="w-5 h-5" />} 
+                    label={t('drivers', 'Drivers')} 
+                    active={currentView.startsWith('drivers')}
+                    onClick={() => { onViewChange('drivers'); setIsMobileMenuOpen(false); }}
                   />
                   <SidebarItem 
                     icon={<Truck className="w-5 h-5" />} 

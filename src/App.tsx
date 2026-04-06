@@ -9,6 +9,7 @@ import { MapSection } from './components/MapSection';
 import { DispatchForm } from './components/DispatchForm';
 import { TripsHistory } from './components/TripsHistory';
 import { ClientManagement } from './components/clients/ClientManagement';
+import { DriverManagement } from './components/drivers/DriverManagement';
 import FleetAnalytics from './components/FleetAnalytics';
 import { FleetManagement } from './components/FleetManagement';
 import { HomeDashboard } from './components/HomeDashboard';
@@ -72,6 +73,8 @@ export default function App() {
         <TripsHistory />
       ) : currentView.startsWith('clients') ? (
         <ClientManagement currentView={currentView} onViewChange={setCurrentView} />
+      ) : currentView.startsWith('drivers') ? (
+        <DriverManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView === 'fleet' ? (
         <FleetManagement />
       ) : currentView === 'analytics' ? (
