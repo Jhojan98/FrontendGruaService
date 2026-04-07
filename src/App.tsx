@@ -7,27 +7,24 @@ import { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { MapSection } from './components/MapSection';
 import { DispatchForm } from './components/DispatchForm';
-import { TripsHistory } from './components/TripsHistory';
+import { HistoryManagement } from './components/history/HistoryManagement';
 import { ClientManagement } from './components/clients/ClientManagement';
 import FleetAnalytics from './components/FleetAnalytics';
-import { FleetManagement } from './components/FleetManagement';
+import { FleetManagement as FleetModuleManagement } from './components/fleet/FleetManagement';
 import { HomeDashboard } from './components/HomeDashboard';
 import { SupportCenter } from './components/SupportCenter';
 import { SettingsPage } from './components/SettingsPage';
 import { Login } from './components/Login';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { DriverManagement } from './components/drivers/DriverManagement';
+import { InternalUserManagement } from './components/settings/InternalUserManagement';
+import { TariffBillingAdminPanel } from './components/settings/TariffBillingAdminPanel';
 import { useAuth } from './contexts/AuthContext';
 
 export default function App() {
-  const { loginWithCredentials, logout, isSubmitting, error, clearError, user } = useAuth();
+  const { isAuthenticated, isInitializing, isSubmitting, error, loginWithCredentials, logout } = useAuth();
   const [currentView, setCurrentView] = useState('home');
 
-  const [isDarkMode, setIsDarkMode] = useState(
-    () => localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  );
-
   const handleLogin = async (email: string, password: string) => {
-    clearError();
     await loginWithCredentials(email, password);
   };
 
@@ -36,12 +33,9 @@ export default function App() {
     setCurrentView('home');
   };
 
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-    setIsDarkMode(user.theme === 'dark');
-  }, [user]);
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  );
 
   useEffect(() => {
     if (isDarkMode) {
@@ -53,25 +47,30 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  return (
-    <ProtectedRoute
-      fallback={
-        <Login
-          onLogin={handleLogin}
-          isDarkMode={isDarkMode}
-          setIsDarkMode={setIsDarkMode}
-          isLoading={isSubmitting}
-          error={error}
-        />
-      }
-    >
-      <Layout 
-        currentView={currentView} 
-        onViewChange={setCurrentView}
+  if (isInitializing) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Login
+        onLogin={handleLogin}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
-        onLogout={handleLogout}
-      >
+        isLoading={isSubmitting}
+        error={error}
+      />
+    );
+  }
+
+  return (
+    <Layout
+      currentView={currentView}
+      onViewChange={setCurrentView}
+      isDarkMode={isDarkMode}
+      setIsDarkMode={setIsDarkMode}
+      onLogout={handleLogout}
+    >
       {currentView === 'home' ? (
         <HomeDashboard />
       ) : currentView === 'live-dispatch' ? (
@@ -83,23 +82,27 @@ export default function App() {
             <DispatchForm />
           </div>
         </div>
-      ) : currentView === 'history' ? (
-        <TripsHistory />
+      ) : currentView.startsWith('history') ? (
+        <HistoryManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView.startsWith('clients') ? (
         <ClientManagement currentView={currentView} onViewChange={setCurrentView} />
-      ) : currentView === 'fleet' ? (
-        <FleetManagement />
+      ) : currentView.startsWith('drivers') ? (
+        <DriverManagement currentView={currentView} onViewChange={setCurrentView} />
+      ) : currentView.startsWith('fleet') ? (
+        <FleetModuleManagement currentView={currentView} onViewChange={setCurrentView} />
       ) : currentView === 'analytics' ? (
         <FleetAnalytics />
       ) : currentView === 'settings' ? (
-        <SettingsPage isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <SettingsPage isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} onViewChange={setCurrentView} />
+      ) : currentView === 'settings/internal-users' ? (
+        <InternalUserManagement onViewChange={setCurrentView} />
+      ) : currentView === 'settings/tariff-billing' ? (
+        <TariffBillingAdminPanel onViewChange={setCurrentView} />
       ) : currentView === 'support' ? (
         <SupportCenter />
       ) : (
         <div className="p-8">View not found</div>
       )}
     </Layout>
-    </ProtectedRoute>
   );
 }
-

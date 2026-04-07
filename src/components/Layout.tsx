@@ -30,7 +30,7 @@ export const Layout = ({
   onViewChange,
   isDarkMode,
   setIsDarkMode,
-  onLogout
+  onLogout,
 }: { 
   children: React.ReactNode;
   currentView: string;
@@ -71,18 +71,9 @@ export const Layout = ({
               </div>
             </div>
             <nav className="flex items-center gap-1 md:gap-2 text-xs font-medium text-on-surface-variant">
-              <span className="hidden sm:inline cursor-pointer hover:underline" onClick={() => onViewChange('home')}>{t("common.home", "Home")}</span>
-              {currentView !== 'home' && currentView.split('/').map((part, index, array) => (
-                <React.Fragment key={index}>
-                  <ChevronRight className="w-3.5 h-3.5 hidden sm:block" />
-                  <span 
-                    className={`capitalize ${index === array.length - 1 ? 'text-primary font-bold' : 'hidden sm:inline cursor-pointer hover:underline'}`}
-                    onClick={() => index < array.length - 1 ? onViewChange(array.slice(0, index + 1).join('/')) : undefined}
-                  >
-                    {part.replace('-', ' ')}
-                  </span>
-                </React.Fragment>
-              ))}
+              <span className="hidden sm:inline">{t("common.home")}</span>
+              <ChevronRight className="w-3.5 h-3.5 hidden sm:block" />
+              <span className="text-primary font-bold capitalize">{currentView.replace('-', ' ')}</span>
             </nav>
           </div>
           
@@ -144,7 +135,7 @@ export const Layout = ({
             <SidebarItem 
               icon={<History className="w-5 h-5" />} 
               label={t("nav.tripsHistory")} 
-              active={currentView === 'history'} 
+              active={currentView.startsWith('history')} 
               onClick={() => onViewChange('history')}
             />
             <SidebarItem 
@@ -153,10 +144,16 @@ export const Layout = ({
               active={currentView.startsWith('clients')}
               onClick={() => onViewChange('clients')}
             />
+            <SidebarItem
+              icon={<LayoutDashboard className="w-5 h-5" />}
+              label={t('drivers_management', 'Drivers')}
+              active={currentView.startsWith('drivers')}
+              onClick={() => onViewChange('drivers')}
+            />
             <SidebarItem 
               icon={<Truck className="w-5 h-5" />} 
               label={t("nav.towTrucks")} 
-              active={currentView === 'fleet'}
+              active={currentView.startsWith('fleet')}
               onClick={() => onViewChange('fleet')}
             />
             <SidebarItem 
@@ -171,7 +168,7 @@ export const Layout = ({
             <SidebarItem 
               icon={<Settings className="w-5 h-5" />} 
               label={t("nav.settings")} 
-              active={currentView === 'settings'}
+              active={currentView.startsWith('settings')}
               onClick={() => onViewChange('settings')}
             />
             <SidebarItem 
@@ -210,7 +207,7 @@ export const Layout = ({
         <MobileNavItem 
           icon={<History className="w-6 h-6 pointer-events-none" />} 
           label={t("nav.tripsHistory")} 
-          active={currentView === 'history'} 
+          active={currentView.startsWith('history')} 
           onClick={() => onViewChange('history')}
         />
         <MobileNavItem 
@@ -222,7 +219,7 @@ export const Layout = ({
         <MobileNavItem 
           icon={<Truck className="w-6 h-6 pointer-events-none" />} 
           label={t("nav.towTrucks")} 
-          active={currentView === 'fleet'}
+          active={currentView.startsWith('fleet')}
           onClick={() => onViewChange('fleet')}
         />
       </nav>
@@ -269,7 +266,7 @@ export const Layout = ({
                   <SidebarItem 
                     icon={<History className="w-5 h-5" />} 
                     label={t("nav.tripsHistory")} 
-                    active={currentView === 'history'} 
+                    active={currentView.startsWith('history')} 
                     onClick={() => { onViewChange('history'); setIsMobileMenuOpen(false); }}
                   />
                   <SidebarItem 
@@ -278,10 +275,16 @@ export const Layout = ({
                     active={currentView.startsWith('clients')}
                     onClick={() => { onViewChange('clients'); setIsMobileMenuOpen(false); }}
                   />
+                  <SidebarItem
+                    icon={<LayoutDashboard className="w-5 h-5" />}
+                    label={t('drivers_management', 'Drivers')}
+                    active={currentView.startsWith('drivers')}
+                    onClick={() => { onViewChange('drivers'); setIsMobileMenuOpen(false); }}
+                  />
                   <SidebarItem 
                     icon={<Truck className="w-5 h-5" />} 
                     label={t("nav.towTrucks")} 
-                    active={currentView === 'fleet'}
+                    active={currentView.startsWith('fleet')}
                     onClick={() => { onViewChange('fleet'); setIsMobileMenuOpen(false); }}
                   />
                 </nav>
@@ -305,7 +308,7 @@ export const Layout = ({
                   <SidebarItem 
                     icon={<Settings className="w-5 h-5" />} 
                     label={t("nav.settings")} 
-                    active={currentView === 'settings'}
+                    active={currentView.startsWith('settings')}
                     onClick={() => { onViewChange('settings'); setIsMobileMenuOpen(false); }}
                   />
                   <SidebarItem 
