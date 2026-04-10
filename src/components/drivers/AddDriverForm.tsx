@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   UserPlus,
@@ -11,12 +11,61 @@ import {
   ArrowRight,
   Upload,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { createDriver } from './driversData';
+import type { DriverRecord } from './driversTypes';
 
 interface AddDriverFormProps {
   onCancel: () => void;
+  onCreated: (driver: DriverRecord) => void;
 }
 
-export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
+export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel, onCreated }) => {
+  const { t } = useTranslation();
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [unit, setUnit] = useState('Unit-000');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [imageFile]);
+
+  const handleCreate = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await createDriver(
+        {
+          name,
+          role: 'Tow Operator',
+          unit,
+          status: 'Available',
+          shift: 'Morning',
+          phone,
+          score: 4.5,
+          trips: 0,
+        },
+        imageFile,
+      );
+      onCreated(created);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('drivers.failed_create'));
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-background">
       <div className="p-6 md:p-8 max-w-7xl mx-auto w-full">
@@ -26,8 +75,8 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
               <ArrowLeft className="w-5 h-5 text-on-surface" />
             </button>
             <div>
-              <h2 className="text-3xl font-bold text-on-background tracking-tight font-headline">Add New Driver Form</h2>
-              <p className="text-sm text-on-surface-variant mt-1">Register a new driver profile, compliance details, and fleet assignment.</p>
+              <h2 className="text-3xl font-bold text-on-background tracking-tight font-headline">{t('drivers.add_form_title')}</h2>
+              <p className="text-sm text-on-surface-variant mt-1">{t('drivers.add_form_subtitle')}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -36,18 +85,25 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
               className="px-5 py-2.5 rounded-lg border border-outline-variant text-on-surface-variant font-bold text-sm hover:bg-surface-container transition-colors"
               type="button"
             >
-              Cancel
+              {t('drivers.cancel')}
             </button>
             <button
-              onClick={onCancel}
+              onClick={handleCreate}
               className="px-5 py-2.5 rounded-lg bg-primary text-on-primary font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity"
               type="button"
+              disabled={saving}
             >
               <UserPlus className="w-4 h-4" />
-              Register Driver
+              {saving ? t('drivers.registering') : t('drivers.register_driver')}
             </button>
           </div>
         </header>
+
+        {error && (
+          <div className="mb-6 bg-error/10 border border-error/20 rounded-xl p-4">
+            <p className="text-error text-sm">{error}</p>
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 space-y-8">
@@ -57,18 +113,31 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
                   <div className="flex items-center gap-6">
                     <div className="relative group">
                       <div className="h-24 w-24 rounded-2xl bg-surface-container-high border-2 border-dashed border-outline-variant flex items-center justify-center overflow-hidden">
-                        <Camera className="w-8 h-8 text-outline" />
+                        {imagePreviewUrl ? (
+                          <img src={imagePreviewUrl} alt={t('drivers.driver_profile_photo')} className="h-full w-full object-cover" />
+                        ) : (
+                          <Camera className="w-8 h-8 text-outline" />
+                        )}
                       </div>
                       <button
                         className="absolute -bottom-2 -right-2 bg-primary text-on-primary p-1.5 rounded-lg shadow-md hover:scale-105 transition-transform"
                         type="button"
+                        onClick={() => fileInputRef.current?.click()}
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+                      />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-on-surface">Driver Profile Photo</h3>
-                      <p className="text-sm text-on-surface-variant mt-1">Upload a clear front-facing portrait. Max size 5MB.</p>
+                      <h3 className="text-xl font-bold text-on-surface">{t('drivers.photo_title')}</h3>
+                      <p className="text-sm text-on-surface-variant mt-1">{t('drivers.photo_hint')}</p>
+                      {imageFile && <p className="text-xs text-primary mt-1">{t('drivers.selected_file')} {imageFile.name}</p>}
                     </div>
                   </div>
                 </section>
@@ -76,44 +145,48 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
                 <section className="space-y-6">
                   <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-2">
                     <User className="w-4 h-4 text-primary" />
-                    <h3 className="text-lg font-bold text-on-surface">Personal Information</h3>
+                    <h3 className="text-lg font-bold text-on-surface">{t('drivers.personal_info')}</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Field label="Full Name">
+                    <Field label={t('drivers.full_name')}>
                       <input
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        placeholder="e.g. Johnathan Miller"
+                        placeholder={t('drivers.full_name_placeholder')}
                         type="text"
                       />
                     </Field>
 
-                    <Field label="Date of Birth">
+                    <Field label={t('drivers.date_of_birth')}>
                       <input
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         type="date"
                       />
                     </Field>
 
-                    <Field label="Email Address">
+                    <Field label={t('drivers.email_address')}>
                       <input
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        placeholder="j.miller@example.com"
+                        placeholder={t('drivers.email_placeholder')}
                         type="email"
                       />
                     </Field>
 
-                    <Field label="Phone Number">
+                    <Field label={t('drivers.phone_number')}>
                       <input
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value)}
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        placeholder="+1 (555) 000-0000"
+                        placeholder={t('drivers.phone_placeholder')}
                         type="tel"
                       />
                     </Field>
 
-                    <Field className="md:col-span-2" label="Home Address">
+                    <Field className="md:col-span-2" label={t('drivers.home_address')}>
                       <textarea
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        placeholder="Street Address, City, State, ZIP"
+                        placeholder={t('drivers.home_address_placeholder')}
                         rows={2}
                       />
                     </Field>
@@ -123,18 +196,18 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
                 <section className="space-y-6">
                   <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-2">
                     <Badge className="w-4 h-4 text-primary" />
-                    <h3 className="text-lg font-bold text-on-surface">License Details</h3>
+                    <h3 className="text-lg font-bold text-on-surface">{t('drivers.license_details')}</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <Field className="lg:col-span-2" label="License Number">
+                    <Field className="lg:col-span-2" label={t('drivers.license_number')}>
                       <input
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        placeholder="DL-987654321"
+                        placeholder={t('drivers.license_placeholder')}
                         type="text"
                       />
                     </Field>
 
-                    <Field label="Class">
+                    <Field label={t('drivers.class')}>
                       <select className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
                         <option>Class A</option>
                         <option>Class B</option>
@@ -142,15 +215,15 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
                       </select>
                     </Field>
 
-                    <Field label="State of Issue">
+                    <Field label={t('drivers.state_of_issue')}>
                       <input
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        placeholder="e.g. CA"
+                        placeholder={t('drivers.state_placeholder')}
                         type="text"
                       />
                     </Field>
 
-                    <Field className="lg:col-span-2" label="Expiration Date">
+                    <Field className="lg:col-span-2" label={t('drivers.expiration_date')}>
                       <input
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         type="date"
@@ -162,27 +235,31 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
                 <section className="space-y-6">
                   <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-2">
                     <Truck className="w-4 h-4 text-primary" />
-                    <h3 className="text-lg font-bold text-on-surface">Fleet Assignment</h3>
+                    <h3 className="text-lg font-bold text-on-surface">{t('drivers.fleet_assignment')}</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Field label="Initial Vehicle Assignment">
-                      <select className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                        <option>Select Unit...</option>
-                        <option>Unit #TRK-102 (Flatbed)</option>
-                        <option>Unit #TRK-405 (Tow Truck)</option>
-                        <option>Unit #VAN-08 (Support)</option>
+                    <Field label={t('drivers.initial_vehicle_assignment')}>
+                      <select
+                        value={unit}
+                        onChange={(event) => setUnit(event.target.value)}
+                        className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                      >
+                        <option value="Unit-000">{t('drivers.select_unit')}</option>
+                        <option value="Unit-102">Unit #TRK-102 (Flatbed)</option>
+                        <option value="Unit-405">Unit #TRK-405 (Tow Truck)</option>
+                        <option value="Unit-08">Unit #VAN-08 (Support)</option>
                       </select>
                     </Field>
 
-                    <Field label="Employment Type">
+                    <Field label={t('drivers.employment_type')}>
                       <div className="flex gap-4 pt-2">
                         <label className="flex items-center gap-2 cursor-pointer group">
                           <input className="text-primary focus:ring-primary h-4 w-4" defaultChecked name="employment" type="radio" />
-                          <span className="text-sm text-on-surface group-hover:text-primary transition-colors">Full-time</span>
+                          <span className="text-sm text-on-surface group-hover:text-primary transition-colors">{t('drivers.full_time')}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer group">
                           <input className="text-primary focus:ring-primary h-4 w-4" name="employment" type="radio" />
-                          <span className="text-sm text-on-surface group-hover:text-primary transition-colors">Contractor</span>
+                          <span className="text-sm text-on-surface group-hover:text-primary transition-colors">{t('drivers.contractor')}</span>
                         </label>
                       </div>
                     </Field>
@@ -197,25 +274,25 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
             <div className="bg-tertiary-fixed/30 rounded-xl p-6 border border-tertiary-container/20">
               <div className="flex items-center gap-3 mb-4">
                 <Lightbulb className="w-5 h-5 text-tertiary" />
-                <h4 className="font-bold text-on-tertiary-container">Helpful Tips</h4>
+                <h4 className="font-bold text-on-tertiary-container">{t('drivers.helpful_tips')}</h4>
               </div>
               <ul className="space-y-4 text-sm text-on-tertiary-fixed-variant leading-relaxed">
                 <li className="flex gap-2">
                   <span className="text-tertiary font-bold">•</span>
                   <p>
-                    Ensure the <strong>License Class</strong> matches the assigned vehicle requirements to maintain compliance.
+                    {t('drivers.tip_1')}
                   </p>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-tertiary font-bold">•</span>
                   <p>
-                    Double-check the <strong>Expiration Date</strong>; the system will auto-notify the driver 30 days prior to expiry.
+                    {t('drivers.tip_2')}
                   </p>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-tertiary font-bold">•</span>
                   <p>
-                    For <strong>Contractors</strong>, remember to upload their specific insurance documents in the documents tab after registration.
+                    {t('drivers.tip_3')}
                   </p>
                 </li>
               </ul>
@@ -223,10 +300,10 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
 
             <div className="bg-surface-container-high rounded-xl p-6 overflow-hidden relative group border border-outline-variant/20">
               <div className="relative z-10">
-                <h4 className="font-bold text-on-surface mb-2">Need bulk import?</h4>
-                <p className="text-xs text-on-surface-variant mb-4">Have a fleet of 10+ drivers to add? Use our CSV importer.</p>
+                <h4 className="font-bold text-on-surface mb-2">{t('drivers.need_bulk_import')}</h4>
+                <p className="text-xs text-on-surface-variant mb-4">{t('drivers.bulk_import_desc')}</p>
                 <button className="text-xs font-bold text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                  Download Template
+                  {t('drivers.download_template')}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -234,16 +311,16 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel }) => {
             </div>
 
             <div className="bg-primary/5 rounded-xl p-6 border border-primary/10">
-              <h4 className="font-bold text-primary mb-3">Compliance Check</h4>
+              <h4 className="font-bold text-primary mb-3">{t('drivers.compliance_check')}</h4>
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span>Background Check</span>
-                  <span className="text-tertiary font-bold">Pending</span>
+                  <span>{t('drivers.background_check')}</span>
+                  <span className="text-tertiary font-bold">{t('drivers.pending')}</span>
                 </div>
                 <div className="w-full bg-surface-container rounded-full h-1.5">
                   <div className="bg-tertiary h-1.5 rounded-full w-[45%]" />
                 </div>
-                <p className="text-[10px] text-on-surface-variant">Background verification usually takes 2-3 business days.</p>
+                <p className="text-[10px] text-on-surface-variant">{t('drivers.background_verification_hint')}</p>
               </div>
             </div>
           </aside>

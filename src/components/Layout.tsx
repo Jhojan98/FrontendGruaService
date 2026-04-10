@@ -24,6 +24,19 @@ import { cn } from '../lib/utils';
 import { NotificationsPanel } from './NotificationsPanel';
 import { SimplifiedProfileMenu } from './SimplifiedProfileMenu';
 
+function toTitleLabel(segment: string): string {
+  return segment
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function buildBreadcrumbLabels(currentView: string): string[] {
+  const segments = currentView.split('/').filter(Boolean);
+  return segments.map((segment) => `breadcrumbs.${segment}`);
+}
+
 export const Layout = ({ 
   children, 
   currentView, 
@@ -42,6 +55,7 @@ export const Layout = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const breadcrumbLabelKeys = buildBreadcrumbLabels(currentView);
 
   return (
     <div className="min-h-screen bg-background text-on-background overflow-hidden flex flex-col">
@@ -73,7 +87,17 @@ export const Layout = ({
             <nav className="flex items-center gap-1 md:gap-2 text-xs font-medium text-on-surface-variant">
               <span className="hidden sm:inline">{t("common.home")}</span>
               <ChevronRight className="w-3.5 h-3.5 hidden sm:block" />
-              <span className="text-primary font-bold capitalize">{currentView.replace('-', ' ')}</span>
+              {breadcrumbLabelKeys.map((labelKey, index) => {
+                const segment = labelKey.replace('breadcrumbs.', '');
+                const label = t(labelKey, toTitleLabel(segment));
+                const isLast = index === breadcrumbLabelKeys.length - 1;
+                return (
+                  <React.Fragment key={`${label}-${index}`}>
+                    <span className={isLast ? 'text-primary font-bold' : ''}>{label}</span>
+                    {!isLast && <ChevronRight className="w-3.5 h-3.5" />}
+                  </React.Fragment>
+                );
+              })}
             </nav>
           </div>
           
