@@ -14,12 +14,20 @@ import {
 import { useTranslation } from 'react-i18next';
 import { updateDriver } from './driversData';
 import type { DriverRecord } from './driversTypes';
+import { listFleet } from '../../lib/api';
+import type { FleetTruck } from '../../types';
 
 interface EditDriverProfileProps {
   driver: DriverRecord;
   onCancel: () => void;
   onSave: (driver: DriverRecord) => void;
 }
+
+const PHONE_PATTERN = /^[+()\-\s0-9]{7,20}$/;
+const UNIT_PATTERN = /^Unit-[A-Za-z0-9]{1,20}$/;
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const PREFILL_DRIVER_UNIT = 'prefill_driver_unit';
 
 export const EditDriverProfile: React.FC<EditDriverProfileProps> = ({ driver, onCancel, onSave }) => {
   const { t } = useTranslation();
@@ -33,9 +41,28 @@ export const EditDriverProfile: React.FC<EditDriverProfileProps> = ({ driver, on
   const [trips, setTrips] = useState(driver.trips);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [fleetUnits, setFleetUnits] = useState<FleetTruck[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    listFleet()
+      .then((trucks) => setFleetUnits(trucks))
+      .catch(() => setFleetUnits([]));
+  }, []);
+
+  useEffect(() => {
+    const prefilledUnit = sessionStorage.getItem(PREFILL_DRIVER_UNIT);
+    if (prefilledUnit) {
+      setUnit(prefilledUnit);
+      sessionStorage.removeItem(PREFILL_DRIVER_UNIT);
+    }
+  }, []);
+
+  const selectableUnits = fleetUnits
+    .filter((truck) => !truck.assignedDriverId || truck.assignedDriverId === driver.id)
+    .sort((a, b) => a.unitNumber.localeCompare(b.unitNumber));
 
   useEffect(() => {
     if (!imageFile) {
@@ -49,20 +76,62 @@ export const EditDriverProfile: React.FC<EditDriverProfileProps> = ({ driver, on
   }, [imageFile]);
 
   const handleSave = async () => {
+    const normalizedName = name.trim();
+    const normalizedRole = role.trim();
+    const normalizedUnit = unit.trim();
+    const normalizedPhone = phone.trim();
+    const normalizedScore = Number(score);
+    const normalizedTrips = Number(trips);
+
+    if (normalizedName.length < 2 || normalizedName.length > 255) {
+      setError('Driver name must be between 2 and 255 characters.');
+      return;
+    }
+    if (normalizedRole.length < 2 || normalizedRole.length > 128) {
+      setError('Role must be between 2 and 128 characters.');
+      return;
+    }
+    if (!UNIT_PATTERN.test(normalizedUnit)) {
+      setError('Unit must follow the format Unit-XXX.');
+      return;
+    }
+    if (!PHONE_PATTERN.test(normalizedPhone)) {
+      setError('Phone must be 7-20 chars and only contain numbers, spaces, +, -, ().');
+      return;
+    }
+    if (!Number.isFinite(normalizedScore) || normalizedScore < 0 || normalizedScore > 5) {
+      setError('Safety score must be a number between 0 and 5.');
+      return;
+    }
+    if (!Number.isInteger(normalizedTrips) || normalizedTrips < 0) {
+      setError('Trips must be a non-negative integer.');
+      return;
+    }
+    if (imageFile) {
+      if (!ALLOWED_IMAGE_TYPES.has(imageFile.type)) {
+        setError('Profile image must be JPG, PNG, or WEBP.');
+        return;
+      }
+      if (imageFile.size > MAX_IMAGE_SIZE_BYTES) {
+        setError('Profile image must be 5MB or smaller.');
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     try {
       const updated = await updateDriver(
         driver.id,
         {
-          name,
-          role,
-          unit,
+          name: normalizedName,
+          role: normalizedRole,
+          unit: normalizedUnit,
           status: statusValue,
           shift,
-          phone,
-          score: Number(score),
-          trips: Number(trips),
+          phone: normalizedPhone,
+          score: normalizedScore,
+          trips: normalizedTrips,
         },
         imageFile,
       );
@@ -252,7 +321,12 @@ export const EditDriverProfile: React.FC<EditDriverProfileProps> = ({ driver, on
                         onChange={(event) => setUnit(event.target.value)}
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                       >
-                        <option value={unit}>{unit}</option>
+                        {selectableUnits.map((truck) => (
+                          <option key={truck.id} value={truck.unitNumber}>
+                            {truck.unitNumber} ({truck.type})
+                          </option>
+                        ))}
+                        {!selectableUnits.some((truck) => truck.unitNumber === unit) && <option value={unit}>{unit}</option>}
                       </select>
                     </Field>
 

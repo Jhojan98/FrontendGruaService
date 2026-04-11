@@ -50,6 +50,10 @@ function normalizeDriver(driver: any): DriverRecord {
     score: String(driver.score),
     trips: String(driver.trips),
     image: driver.image || driver.image_url || '',
+    assignedTruckId: driver.assignedTruckId ?? null,
+    assignedTruckUnit: driver.assignedTruckUnit ?? null,
+    assignedTruckType: driver.assignedTruckType ?? null,
+    assignedTruckStatus: driver.assignedTruckStatus ?? null,
   };
 }
 
@@ -154,4 +158,15 @@ export async function updateDriver(driverId: string, payload: DriverUpdatePayloa
 
   const data = await response.json();
   return normalizeDriver(data);
+}
+
+export async function deleteDriverById(driverId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/drivers/${driverId}`, {
+    method: 'DELETE',
+    headers: buildHeadersWithoutContentType(),
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Failed to delete driver');
+  }
 }

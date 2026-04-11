@@ -8,14 +8,15 @@ import {
   ShieldCheck,
   ChevronDown,
   ArrowDown,
-  ChevronRight,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { fetchDrivers } from './driversData';
+import { deleteDriverById, fetchDrivers } from './driversData';
 import type { DriverRecord } from './driversTypes';
 import { DriverDetails } from './DriverDetails';
 import { EditDriverProfile } from './EditDriverProfile';
 import { AddDriverForm } from './AddDriverForm';
+
+const SELECTED_DRIVER_ID = 'selected_driver_id';
 
 export const DriverManagement: React.FC<{ currentView?: string; onViewChange?: (v: string) => void }> = ({
   currentView,
@@ -23,9 +24,11 @@ export const DriverManagement: React.FC<{ currentView?: string; onViewChange?: (
 }) => {
   const { t } = useTranslation();
   const [drivers, setDrivers] = useState<DriverRecord[]>([]);
-  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(() => sessionStorage.getItem(SELECTED_DRIVER_ID));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDeleteDriver, setPendingDeleteDriver] = useState<DriverRecord | null>(null);
+  const [deletingDriverId, setDeletingDriverId] = useState<string | null>(null);
 
   const isDefault = currentView === 'drivers';
   const isWithFilters = currentView === 'drivers/with-filters';
@@ -40,8 +43,13 @@ export const DriverManagement: React.FC<{ currentView?: string; onViewChange?: (
       fetchDrivers()
         .then((data) => {
           setDrivers(data);
-          if (!selectedDriverId && data.length > 0) {
-            setSelectedDriverId(data[0].id);
+          if (data.length > 0) {
+            const hasSelected = selectedDriverId ? data.some((driver) => driver.id === selectedDriverId) : false;
+            if (!hasSelected) {
+              const nextId = data[0].id;
+              setSelectedDriverId(nextId);
+              sessionStorage.setItem(SELECTED_DRIVER_ID, nextId);
+            }
           }
           setLoading(false);
         })
@@ -51,6 +59,14 @@ export const DriverManagement: React.FC<{ currentView?: string; onViewChange?: (
         });
     }
   }, [isDefault, isWithFilters, t]);
+
+  useEffect(() => {
+    if (!selectedDriverId) {
+      sessionStorage.removeItem(SELECTED_DRIVER_ID);
+      return;
+    }
+    sessionStorage.setItem(SELECTED_DRIVER_ID, selectedDriverId);
+  }, [selectedDriverId]);
 
   const selectedDriver = drivers.find((driver) => driver.id === selectedDriverId) || null;
 
@@ -167,7 +183,11 @@ export const DriverManagement: React.FC<{ currentView?: string; onViewChange?: (
               className="bg-surface p-6 rounded-xl border border-outline-variant/30 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow"
             >
               <div className="w-full md:w-28 h-28 rounded-xl overflow-hidden shrink-0 border border-outline-variant/30">
-                <img src={driver.image} alt={driver.name} className="w-full h-full object-cover" />
+                <img
+                  src={driver.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200&h=200'}
+                  alt={driver.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="flex-1 flex flex-col justify-between">
                 <div>
@@ -207,32 +227,64 @@ export const DriverManagement: React.FC<{ currentView?: string; onViewChange?: (
                   >
                     {t('drivers.edit')}
                   </button>
+                  <button
+                    onClick={() => setPendingDeleteDriver(driver)}
+                    disabled={deletingDriverId === driver.id}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold text-error hover:bg-error/10 transition-colors disabled:opacity-60"
+                  >
+                    {deletingDriverId === driver.id ? 'Deleting...' : t('delete', 'Delete')}
+                  </button>
                 </div>
               </div>
             </article>
           ))}
         </section>
 
+        {pendingDeleteDriver ? (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/45 backdrop-blur-[1px] animate-in fade-in duration-200">
+            <div className="w-[92%] max-w-md rounded-2xl border border-outline-variant/40 bg-surface p-6 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200">
+              <h3 className="text-lg font-bold text-on-surface mb-2">{t('drivers.confirm_delete_driver', 'Delete driver?')}</h3>
+              <p className="text-sm text-on-surface-variant mb-6">{pendingDeleteDriver.name}</p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setPendingDeleteDriver(null)}
+                  disabled={deletingDriverId === pendingDeleteDriver.id}
+                  className="px-4 py-2 rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors text-sm font-bold disabled:opacity-60"
+                >
+                  {t('drivers.cancel', 'Cancel')}
+                </button>
+                <button
+                  onClick={async () => {
+                    setError(null);
+                    setDeletingDriverId(pendingDeleteDriver.id);
+                    try {
+                      await deleteDriverById(pendingDeleteDriver.id);
+                      setDrivers((prev) => prev.filter((item) => item.id !== pendingDeleteDriver.id));
+                      if (selectedDriverId === pendingDeleteDriver.id) {
+                        const next = drivers.find((item) => item.id !== pendingDeleteDriver.id);
+                        setSelectedDriverId(next?.id ?? null);
+                      }
+                      setPendingDeleteDriver(null);
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : t('drivers.failed_to_fetch'));
+                    } finally {
+                      setDeletingDriverId(null);
+                    }
+                  }}
+                  disabled={deletingDriverId === pendingDeleteDriver.id}
+                  className="px-4 py-2 rounded-lg bg-error text-white hover:opacity-90 transition-all text-sm font-bold disabled:opacity-60"
+                >
+                  {deletingDriverId === pendingDeleteDriver.id ? t('drivers.deleting', 'Deleting...') : t('delete', 'Delete')}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-10 flex justify-center pb-4">
           <button className="bg-surface text-primary text-sm border border-outline-variant/30 shadow-sm px-6 py-2.5 rounded-full font-bold hover:bg-surface-container-low transition-all flex items-center gap-2 group">
             <span>{t('drivers.load_more')}</span>
             <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-          </button>
-        </div>
-
-        <div className="mt-2 bg-surface-container-low rounded-xl border border-outline-variant/20 p-4 flex items-center justify-between">
-          <p className="text-sm text-on-surface-variant">{t('drivers.quick_action')}</p>
-          <button
-            onClick={() => {
-              if (!selectedDriverId && drivers.length > 0) {
-                setSelectedDriverId(drivers[0].id);
-              }
-              onViewChange?.('drivers/driver-details');
-            }}
-            className="text-primary font-bold text-sm flex items-center gap-1 hover:underline"
-          >
-            {t('drivers.open_driver_details')}
-            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>

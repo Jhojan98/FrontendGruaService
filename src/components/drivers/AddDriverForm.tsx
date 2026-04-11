@@ -14,22 +14,47 @@ import {
 import { useTranslation } from 'react-i18next';
 import { createDriver } from './driversData';
 import type { DriverRecord } from './driversTypes';
+import { listFleet } from '../../lib/api';
+import type { FleetTruck } from '../../types';
 
 interface AddDriverFormProps {
   onCancel: () => void;
   onCreated: (driver: DriverRecord) => void;
 }
 
+const PHONE_PATTERN = /^[+()\-\s0-9]{7,20}$/;
+const UNIT_PATTERN = /^Unit-[A-Za-z0-9]{1,20}$/;
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const PREFILL_DRIVER_UNIT = 'prefill_driver_unit';
+
 export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel, onCreated }) => {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [unit, setUnit] = useState('Unit-000');
+  const [unit, setUnit] = useState(() => sessionStorage.getItem(PREFILL_DRIVER_UNIT) ?? 'Unit-000');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [fleetUnits, setFleetUnits] = useState<FleetTruck[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    listFleet()
+      .then((trucks) => setFleetUnits(trucks))
+      .catch(() => setFleetUnits([]));
+  }, []);
+
+  useEffect(() => {
+    const prefilledUnit = sessionStorage.getItem(PREFILL_DRIVER_UNIT);
+    if (prefilledUnit) {
+      setUnit(prefilledUnit);
+      sessionStorage.removeItem(PREFILL_DRIVER_UNIT);
+    }
+  }, []);
+
+  const availableUnits = fleetUnits.filter((truck) => !truck.assignedDriverId).sort((a, b) => a.unitNumber.localeCompare(b.unitNumber));
 
   useEffect(() => {
     if (!imageFile) {
@@ -43,17 +68,44 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel, onCreate
   }, [imageFile]);
 
   const handleCreate = async () => {
+    const normalizedName = name.trim();
+    const normalizedPhone = phone.trim();
+    const normalizedUnit = unit.trim();
+
+    if (normalizedName.length < 2 || normalizedName.length > 255) {
+      setError('Driver name must be between 2 and 255 characters.');
+      return;
+    }
+    if (!PHONE_PATTERN.test(normalizedPhone)) {
+      setError('Phone must be 7-20 chars and only contain numbers, spaces, +, -, ().');
+      return;
+    }
+    if (!UNIT_PATTERN.test(normalizedUnit) || normalizedUnit === 'Unit-000') {
+      setError('Select a valid assigned unit in the format Unit-XXX.');
+      return;
+    }
+    if (imageFile) {
+      if (!ALLOWED_IMAGE_TYPES.has(imageFile.type)) {
+        setError('Profile image must be JPG, PNG, or WEBP.');
+        return;
+      }
+      if (imageFile.size > MAX_IMAGE_SIZE_BYTES) {
+        setError('Profile image must be 5MB or smaller.');
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     try {
       const created = await createDriver(
         {
-          name,
+          name: normalizedName,
           role: 'Tow Operator',
-          unit,
+          unit: normalizedUnit,
           status: 'Available',
           shift: 'Morning',
-          phone,
+          phone: normalizedPhone,
           score: 4.5,
           trips: 0,
         },
@@ -245,9 +297,11 @@ export const AddDriverForm: React.FC<AddDriverFormProps> = ({ onCancel, onCreate
                         className="w-full bg-background border-outline-variant/50 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                       >
                         <option value="Unit-000">{t('drivers.select_unit')}</option>
-                        <option value="Unit-102">Unit #TRK-102 (Flatbed)</option>
-                        <option value="Unit-405">Unit #TRK-405 (Tow Truck)</option>
-                        <option value="Unit-08">Unit #VAN-08 (Support)</option>
+                        {availableUnits.map((truck) => (
+                          <option key={truck.id} value={truck.unitNumber}>
+                            {truck.unitNumber} ({truck.type})
+                          </option>
+                        ))}
                       </select>
                     </Field>
 

@@ -16,6 +16,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { fetchDriver } from './driversData';
 import type { DriverRecord } from './driversTypes';
+import { listFleet } from '../../lib/api';
+import type { FleetTruck } from '../../types';
 
 interface DriverDetailsProps {
   driverId: string;
@@ -27,8 +29,21 @@ interface DriverDetailsProps {
 export const DriverDetails: React.FC<DriverDetailsProps> = ({ driverId, onBack, onEdit, onAddDriver }) => {
   const { t } = useTranslation();
   const [driver, setDriver] = useState<DriverRecord | null>(null);
+  const [fleet, setFleet] = useState<FleetTruck[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fallbackAssignedTruck =
+    driver == null
+      ? null
+      : fleet.find((truck) => truck.assignedDriverId === driver.id) ??
+        fleet.find((truck) => truck.unitNumber === driver.unit) ??
+        null;
+
+  const assignedTruckUnit = driver?.assignedTruckUnit ?? fallbackAssignedTruck?.unitNumber ?? null;
+  const assignedTruckType = driver?.assignedTruckType ?? fallbackAssignedTruck?.type ?? null;
+  const assignedTruckStatus = driver?.assignedTruckStatus ?? fallbackAssignedTruck?.status ?? null;
+  const hasAssignedTruck = Boolean(assignedTruckUnit);
 
   useEffect(() => {
     setLoading(true);
@@ -42,6 +57,10 @@ export const DriverDetails: React.FC<DriverDetailsProps> = ({ driverId, onBack, 
         setError(err instanceof Error ? err.message : t('drivers.failed_load_details'));
         setLoading(false);
       });
+
+    listFleet()
+      .then((data) => setFleet(data))
+      .catch(() => setFleet([]));
   }, [driverId, t]);
 
   if (loading) {
@@ -134,6 +153,21 @@ export const DriverDetails: React.FC<DriverDetailsProps> = ({ driverId, onBack, 
 
           <div className="md:col-span-8 bg-surface p-6 rounded-xl border border-outline-variant/30 shadow-sm">
             <h3 className="text-lg font-bold text-on-surface mb-5">{t('drivers.details_title_prefix')} - {driver.name}</h3>
+            <div className="mb-4 p-4 rounded-xl border border-primary/20 bg-primary/5">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">{t('drivers.assigned_unit')}</p>
+              <p className="text-base font-bold text-on-surface mt-1">{driver.unit}</p>
+            </div>
+            <div className="mb-4 p-4 rounded-xl border border-outline-variant/30 bg-surface-container-low">
+              <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">{t('drivers.assigned_truck')}</p>
+              <p className="text-base font-bold text-on-surface mt-1">
+                {hasAssignedTruck ? `${assignedTruckUnit} · ${assignedTruckType ?? '-'}` : t('drivers.unassigned_truck')}
+              </p>
+              <p className="text-xs text-on-surface-variant mt-1">
+                {hasAssignedTruck
+                  ? `${t('drivers.truck_status')}: ${assignedTruckStatus ?? '-'}`
+                  : t('drivers.assign_truck_hint')}
+              </p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoCard icon={<Phone className="w-5 h-5 text-primary" />} label={t('drivers.contact')} value={driver.phone} />
               <InfoCard icon={<Truck className="w-5 h-5 text-primary" />} label={t('drivers.assigned_unit')} value={driver.unit} />

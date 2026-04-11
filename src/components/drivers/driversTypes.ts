@@ -9,6 +9,10 @@ export interface DriverRecord {
   score: string;
   trips: string;
   image: string;
+  assignedTruckId?: string | null;
+  assignedTruckUnit?: string | null;
+  assignedTruckType?: string | null;
+  assignedTruckStatus?: string | null;
 }
 
 export interface DriverCreatePayload {
