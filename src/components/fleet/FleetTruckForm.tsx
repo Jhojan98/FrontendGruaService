@@ -1,15 +1,86 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeft, Image as ImageIcon, Pencil, Save, UserPlus } from 'lucide-react';
+import { createFleetTruck, updateFleetTruck } from '../../lib/api';
 import { FleetManagementProps } from './types';
 
 type FleetTruckFormProps = FleetManagementProps & {
   isEditing: boolean;
 };
 
-export const FleetTruckForm: React.FC<FleetTruckFormProps> = ({ isEditing, onViewChange }) => {
+const UNIT_PATTERN = /^Unit-[A-Za-z0-9]{1,20}$/;
+const TEXT_PATTERN = /^[A-Za-z0-9\s\-]{1,64}$/;
+
+export const FleetTruckForm: React.FC<FleetTruckFormProps> = ({
+  isEditing,
+  onViewChange,
+  selectedTruckId,
+  fleet = [],
+  refreshFleet,
+}) => {
+  const formRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const selectedTruck = fleet.find((truck) => truck.id === selectedTruckId) ?? null;
+  const typeParts = (selectedTruck?.type ?? '').split(' ');
+  const defaultMake = typeParts[0] ?? '';
+  const defaultModel = typeParts.slice(1).join(' ');
+
+  const handleSave = async () => {
+    if (!formRef.current) {
+      return;
+    }
+    const unitInput = formRef.current.querySelector<HTMLInputElement>('input[name="unitNumber"]');
+    const makeInput = formRef.current.querySelector<HTMLInputElement>('input[name="make"]');
+    const modelInput = formRef.current.querySelector<HTMLInputElement>('input[name="model"]');
+    const idInput = formRef.current.querySelector<HTMLInputElement>('input[name="truckId"]');
+
+    const unitNumber = unitInput?.value.trim() ?? '';
+    const make = makeInput?.value.trim() ?? '';
+    const model = modelInput?.value.trim() ?? '';
+    const type = `${make} ${model}`.trim();
+    const truckId = idInput?.value.trim() ?? '';
+
+    if (!unitNumber || !type) {
+      setSaveError('Unit Number, Make, and Model are required.');
+      return;
+    }
+    if (!UNIT_PATTERN.test(unitNumber)) {
+      setSaveError('Unit Number must follow format Unit-XXX (letters/numbers).');
+      return;
+    }
+    if (!TEXT_PATTERN.test(make) || !TEXT_PATTERN.test(model)) {
+      setSaveError('Make and Model only allow letters, numbers, spaces, and hyphens (max 64).');
+      return;
+    }
+
+    if (isEditing && !truckId) {
+      setSaveError('No truck selected for update.');
+      return;
+    }
+
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      if (isEditing && truckId) {
+        await updateFleetTruck(truckId, { unitNumber, type }, imageFile);
+      } else {
+        await createFleetTruck({ unitNumber, type, lat: 0, lng: 0 }, imageFile);
+      }
+      await refreshFleet?.();
+      onViewChange?.('fleet');
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Failed to save truck.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <main className="h-full overflow-y-auto p-6 md:p-8 bg-background">
-      <div className="max-w-6xl mx-auto">
+      <div ref={formRef} className="max-w-6xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
             <button onClick={() => onViewChange?.('fleet')} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
@@ -30,14 +101,18 @@ export const FleetTruckForm: React.FC<FleetTruckFormProps> = ({ isEditing, onVie
               Cancel
             </button>
             <button
-              onClick={() => onViewChange?.('fleet/truck-details')}
+              onClick={() => void handleSave()}
               className="px-5 py-2.5 rounded-lg bg-primary text-on-primary font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity"
+              disabled={isSaving}
             >
               {isEditing ? <Save className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-              Save Truck
+              {isSaving ? 'Saving...' : 'Save Truck'}
             </button>
           </div>
         </header>
+
+        {isEditing ? <input type="hidden" name="truckId" value={selectedTruckId ?? ''} readOnly /> : null}
+        {saveError ? <p className="text-sm text-error mb-4">{saveError}</p> : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
@@ -49,21 +124,39 @@ export const FleetTruckForm: React.FC<FleetTruckFormProps> = ({ isEditing, onVie
                   <div className="relative group">
                     <div className="h-24 w-24 rounded-xl overflow-hidden border border-outline-variant bg-background">
                       <img
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCfLj7yPaWlI7y5cQjVu0HABdZCj04KYk1qwdVXgTtCeTWmmgo_A2RsbaGrXro_yLF5Jeo9P7R23S_DrXkFCsItw8DeRCj6fchebQjOtJoKctTgPjBiXAhpMGN8V6IW5I4DNuW6psOCaqU9QzmRppK1pBcXdwG2AO7jqPqBk33NKeoO9bhg7m7ufiWyQlJJpLsEYV0-eItfVkoG8T6RkpGm8xfmHqkJGWJ1B54cXgk4slqLd1vBWPxihR2nfnPweYtteVavIF1uvOA"
+                        src={imagePreviewUrl ?? selectedTruck?.imageUrl ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuCfLj7yPaWlI7y5cQjVu0HABdZCj04KYk1qwdVXgTtCeTWmmgo_A2RsbaGrXro_yLF5Jeo9P7R23S_DrXkFCsItw8DeRCj6fchebQjOtJoKctTgPjBiXAhpMGN8V6IW5I4DNuW6psOCaqU9QzmRppK1pBcXdwG2AO7jqPqBk33NKeoO9bhg7m7ufiWyQlJJpLsEYV0-eItfVkoG8T6RkpGm8xfmHqkJGWJ1B54cXgk4slqLd1vBWPxihR2nfnPweYtteVavIF1uvOA'}
                         alt="Vehicle preview"
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <button
                       type="button"
+                      onClick={() => fileInputRef.current?.click()}
                       className="absolute -bottom-2 -right-2 bg-primary text-on-primary p-1.5 rounded-lg shadow-md hover:opacity-90 transition-opacity"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(event) => {
+                        const selected = event.target.files?.[0] ?? null;
+                        setImageFile(selected);
+                        if (!selected) {
+                          setImagePreviewUrl(null);
+                          return;
+                        }
+                        const objectUrl = URL.createObjectURL(selected);
+                        setImagePreviewUrl(objectUrl);
+                      }}
+                    />
                   </div>
                   <div>
                     <button
                       type="button"
+                      onClick={() => fileInputRef.current?.click()}
                       className="px-4 py-2 rounded-lg border border-primary/30 text-primary font-bold text-sm hover:bg-primary/5 transition-colors flex items-center gap-2"
                     >
                       <ImageIcon className="w-4 h-4" />
@@ -74,10 +167,10 @@ export const FleetTruckForm: React.FC<FleetTruckFormProps> = ({ isEditing, onVie
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <VehicleField label="Unit Number" defaultValue={isEditing ? 'Unit-701' : ''} placeholder="e.g. T-104" />
+                <VehicleField name="unitNumber" label="Unit Number" defaultValue={isEditing ? (selectedTruck?.unitNumber ?? 'Unit-701') : ''} placeholder="e.g. T-104" />
                 <VehicleField label="License Plate" defaultValue={isEditing ? 'TRRA-701' : ''} placeholder="ABC-1234" />
-                <VehicleField label="Make" defaultValue={isEditing ? 'Peterbilt' : ''} placeholder="Ford, Kenworth, etc." />
-                <VehicleField label="Model" defaultValue={isEditing ? '389' : ''} placeholder="F-550, T680" />
+                <VehicleField name="make" label="Make" defaultValue={isEditing ? defaultMake : ''} placeholder="Ford, Kenworth, etc." />
+                <VehicleField name="model" label="Model" defaultValue={isEditing ? defaultModel : ''} placeholder="F-550, T680" />
                 <div>
                   <label className="text-sm font-bold text-on-surface-variant block mb-2">Year</label>
                   <select defaultValue={isEditing ? '2023' : '2024'} className="w-full bg-background border-outline-variant rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary">
@@ -152,11 +245,13 @@ export const FleetTruckForm: React.FC<FleetTruckFormProps> = ({ isEditing, onVie
 };
 
 const VehicleField = ({
+  name,
   label,
   defaultValue,
   placeholder,
   type = 'text',
 }: {
+  name?: string;
   label: string;
   defaultValue?: string;
   placeholder?: string;
@@ -165,6 +260,7 @@ const VehicleField = ({
   <div>
     <label className="text-sm font-bold text-on-surface-variant block mb-2">{label}</label>
     <input
+      name={name}
       type={type}
       defaultValue={defaultValue}
       placeholder={placeholder}

@@ -1,8 +1,107 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Gauge, History, IdCard, Route, Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { assignFleetTruckDriver, getFleetTruck, listDrivers } from '../../lib/api';
+import { DriverListItem, FleetTruck } from '../../types';
 import { FleetManagementProps } from './types';
 
-export const FleetTruckDetails: React.FC<FleetManagementProps> = ({ onViewChange }) => {
+const SELECTED_DRIVER_ID = 'selected_driver_id';
+
+export const FleetTruckDetails: React.FC<FleetManagementProps> = ({ onViewChange, selectedTruckId, fleet = [], refreshFleet }) => {
+  const { t } = useTranslation();
+  const fallbackTruck = fleet.find((item) => item.id === selectedTruckId) ?? fleet[0] ?? null;
+  const [truck, setTruck] = useState<FleetTruck | null>(fallbackTruck);
+  const [drivers, setDrivers] = useState<DriverListItem[]>([]);
+  const [showDriverSelector, setShowDriverSelector] = useState(false);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const hasAssignedDriver = Boolean(truck?.assignedDriverId && truck?.assignedDriverName);
+
+  useEffect(() => {
+    if (!selectedTruckId) {
+      setTruck(fallbackTruck);
+      return;
+    }
+    getFleetTruck(selectedTruckId)
+      .then((data) => setTruck(data))
+      .catch(() => setTruck(fallbackTruck));
+  }, [fallbackTruck, selectedTruckId]);
+
+  const assignableDrivers = useMemo(
+    () =>
+      drivers.filter((driver) => {
+        if (driver.id === truck?.assignedDriverId) {
+          return true;
+        }
+        const hasOtherTruckAssigned = Boolean(driver.assignedTruckId && driver.assignedTruckId !== truck?.id);
+        return !hasOtherTruckAssigned && driver.status === 'Available';
+      }),
+    [drivers, truck?.assignedDriverId, truck?.id],
+  );
+
+  const noAvailableDrivers = assignableDrivers.length === 0;
+
+  const handleViewProfile = () => {
+    if (!truck?.assignedDriverId) {
+      return;
+    }
+    sessionStorage.setItem(SELECTED_DRIVER_ID, truck.assignedDriverId);
+    onViewChange?.('drivers/driver-details');
+  };
+
+  const handleChangeDriver = () => {
+    if (!truck) {
+      return;
+    }
+    setShowDriverSelector(true);
+    setAssignmentError(null);
+    setSelectedDriverId(truck.assignedDriverId ?? '');
+    listDrivers()
+      .then((items) => setDrivers(items))
+      .catch(() => {
+        setDrivers([]);
+        setAssignmentError(t('fleet_details.failed_load_drivers', 'Failed to load drivers list.'));
+      });
+  };
+
+  const handleAssignDriver = async () => {
+    if (!truck || !selectedDriverId) {
+      setAssignmentError(t('fleet_details.select_driver_required', 'Select a driver to assign.'));
+      return;
+    }
+    if (noAvailableDrivers) {
+      setAssignmentError(t('fleet_details.no_available_drivers_now', 'No available drivers at the moment.'));
+      return;
+    }
+    setAssignmentError(null);
+    setIsAssigning(true);
+    try {
+      const updated = await assignFleetTruckDriver(truck.id, { driverId: selectedDriverId });
+      setTruck(updated);
+      await refreshFleet?.();
+      setShowDriverSelector(false);
+      setSelectedDriverId(updated.assignedDriverId ?? '');
+    } catch (error) {
+      setAssignmentError(error instanceof Error ? error.message : t('fleet_details.failed_assign_driver', 'Failed to assign driver.'));
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  if (!truck) {
+    return (
+      <main className="h-full overflow-y-auto p-6 md:p-8 bg-background">
+        <div className="max-w-7xl mx-auto">
+          <button onClick={() => onViewChange?.('fleet')} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
+            <ArrowLeft className="w-5 h-5 text-on-surface" />
+          </button>
+          <p className="text-on-surface-variant mt-4">{t('fleet_details.no_truck_selected', 'No truck selected.')}</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="h-full overflow-y-auto p-6 md:p-8 bg-background">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -12,8 +111,8 @@ export const FleetTruckDetails: React.FC<FleetManagementProps> = ({ onViewChange
               <ArrowLeft className="w-5 h-5 text-on-surface" />
             </button>
             <div>
-              <h2 className="text-3xl font-black text-on-background tracking-tight font-headline">Unit-701</h2>
-              <p className="text-sm text-on-surface-variant mt-1">Heavy-Duty Flatbed • 2023 Peterbilt 389</p>
+              <h2 className="text-3xl font-black text-on-background tracking-tight font-headline">{truck.unitNumber}</h2>
+              <p className="text-sm text-on-surface-variant mt-1">{truck.type} • {truck.status}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -31,7 +130,7 @@ export const FleetTruckDetails: React.FC<FleetManagementProps> = ({ onViewChange
             <img
               alt="Tow truck"
               className="w-full h-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmltKXcD4Jpsp4dURjFjx8s21fFjuF0Yx67p79cfr-ZnwtOxfPq13AmFXYx0lrwUhJsKb-yin8SEn1Ddtxb_T78bK0uSSrazX3V7_eFvYlMyR0bdXaOo-xxzdYP3iWn_FnJT8pe4GOgNOjR31x2WsUE1LtgUYZQQgF73QPk4n_98M9L0CzhoRBQGzubiwbFSP4J7nCIjwHV_-UaIv55oJUe8WH6VePXwyBC-1SmO-07NhI4o0gHZP1RwF_otrq6EhBvUohEbXT1dA"
+              src={truck.imageUrl ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmltKXcD4Jpsp4dURjFjx8s21fFjuF0Yx67p79cfr-ZnwtOxfPq13AmFXYx0lrwUhJsKb-yin8SEn1Ddtxb_T78bK0uSSrazX3V7_eFvYlMyR0bdXaOo-xxzdYP3iWn_FnJT8pe4GOgNOjR31x2WsUE1LtgUYZQQgF73QPk4n_98M9L0CzhoRBQGzubiwbFSP4J7nCIjwHV_-UaIv55oJUe8WH6VePXwyBC-1SmO-07NhI4o0gHZP1RwF_otrq6EhBvUohEbXT1dA'}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute bottom-6 left-6 text-white">
@@ -63,7 +162,7 @@ export const FleetTruckDetails: React.FC<FleetManagementProps> = ({ onViewChange
               </div>
               <div className="pt-4 border-t border-outline-variant/30 flex items-start justify-between">
                 <span className="text-on-surface-variant">Assigned Driver</span>
-                <span className="font-bold text-primary">Marcus Reed</span>
+                <span className="font-bold text-primary">{hasAssignedDriver ? truck.assignedDriverName : 'Unassigned'}</span>
               </div>
               <div className="flex items-start justify-between">
                 <span className="text-on-surface-variant">Estimated Completion</span>
@@ -80,10 +179,10 @@ export const FleetTruckDetails: React.FC<FleetManagementProps> = ({ onViewChange
               <h3 className="text-xl font-bold">Technical Specs</h3>
             </div>
             <div className="space-y-3 text-sm">
-              <InfoLine label="Make / Model" value="Peterbilt 389" />
-              <InfoLine label="Year" value="2023" />
+              <InfoLine label="Make / Model" value={truck.type} />
+              <InfoLine label="Year" value="N/A" />
               <InfoLine label="VIN" value="1XPKD4X9PD123456" mono />
-              <InfoLine label="License Plate" value="TRRA-701 (GA)" />
+              <InfoLine label="License Plate" value={truck.unitNumber} />
             </div>
           </div>
 
@@ -94,20 +193,78 @@ export const FleetTruckDetails: React.FC<FleetManagementProps> = ({ onViewChange
                 <h3 className="text-xl font-bold">Assigned Driver</h3>
               </div>
               <div className="flex gap-2">
-                <button className="px-4 py-2 border border-primary text-primary text-sm font-bold rounded-lg hover:bg-primary/5 transition-colors">Change Driver</button>
-                <button className="px-4 py-2 bg-background text-on-surface-variant text-sm font-bold rounded-lg border border-outline-variant/50 hover:border-outline-variant transition-colors">View Profile</button>
+                <button
+                  onClick={handleChangeDriver}
+                  className="px-4 py-2 border border-primary text-primary text-sm font-bold rounded-lg hover:bg-primary/5 transition-colors"
+                  type="button"
+                >
+                  Change Driver
+                </button>
+                <button
+                  onClick={handleViewProfile}
+                  disabled={!hasAssignedDriver}
+                  className="px-4 py-2 bg-background text-on-surface-variant text-sm font-bold rounded-lg border border-outline-variant/50 hover:border-outline-variant transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                >
+                  View Profile
+                </button>
               </div>
             </div>
 
+            {showDriverSelector && (
+              <div className="mb-4 rounded-xl border border-outline-variant/30 bg-background p-4">
+                <p className="text-sm font-bold text-on-surface mb-2">Assign Available Driver</p>
+                <select
+                  value={selectedDriverId}
+                  onChange={(event) => setSelectedDriverId(event.target.value)}
+                  className="w-full bg-surface border border-outline-variant/50 rounded-lg px-3 py-2 text-sm"
+                  disabled={noAvailableDrivers}
+                >
+                  <option value="">{noAvailableDrivers ? t('fleet_details.no_available_drivers', 'No available drivers') : t('fleet_details.select_driver', 'Select a driver...')}</option>
+                  {drivers.map((driver) => {
+                    const alreadyAssignedToOtherTruck = Boolean(driver.assignedTruckId && driver.assignedTruckId !== truck.id);
+                    const disabled = alreadyAssignedToOtherTruck || (driver.status !== 'Available' && driver.id !== truck.assignedDriverId);
+                    const assignmentLabel = alreadyAssignedToOtherTruck
+                      ? ` - ${t('fleet_details.assigned_to', 'Assigned to')} ${driver.assignedTruckUnit ?? driver.assignedTruckId}`
+                      : '';
+                    return (
+                      <option key={driver.id} value={driver.id} disabled={disabled}>
+                        {driver.name} ({driver.status}){assignmentLabel}
+                      </option>
+                    );
+                  })}
+                </select>
+                {noAvailableDrivers && <p className="text-xs text-on-surface-variant mt-2">{t('fleet_details.no_available_drivers_now', 'No available drivers right now.')}</p>}
+                {assignmentError && <p className="text-xs text-error mt-2">{assignmentError}</p>}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleAssignDriver}
+                    disabled={isAssigning || noAvailableDrivers}
+                    className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold disabled:opacity-50"
+                  >
+                    {isAssigning ? t('fleet_details.assigning', 'Assigning...') : t('fleet_details.assign', 'Assign')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDriverSelector(false)}
+                    className="px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-bold"
+                  >
+                    {t('drivers.cancel', 'Cancel')}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col md:flex-row items-center gap-8">
               <img
-                alt="Marcus Reed"
+                alt={hasAssignedDriver ? truck.assignedDriverName ?? 'Assigned Driver' : 'Unassigned'}
                 className="rounded-2xl object-cover border-4 border-white shadow-sm w-44 h-44"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBibuny2Od0TY_CvKhVxM1zqKT-D3O6E823cS_f7aswcAX1jYtxR7RP7OJYtETbvU_AX1vXcrubfvTdoee5cypnp2qfXpnv1j5LKTF4dmr5GN57-jAMouevjsMH-S02wJJ-JmWTMQYEThXVLD6XYmC0FZJRcUp1FN-yTdfEHO_VBANAyTkV4eDOQ_jqEe5ZPDUXrfEVdp2oVMA1nwS9q1nwOrFYy5hJ7S-SR-tYGr1uf9rddVlpjmYj9MnuNLEq2cFpJSGiB5Wjb-M"
+                src={truck.assignedDriverImage ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuBibuny2Od0TY_CvKhVxM1zqKT-D3O6E823cS_f7aswcAX1jYtxR7RP7OJYtETbvU_AX1vXcrubfvTdoee5cypnp2qfXpnv1j5LKTF4dmr5GN57-jAMouevjsMH-S02wJJ-JmWTMQYEThXVLD6XYmC0FZJRcUp1FN-yTdfEHO_VBANAyTkV4eDOQ_jqEe5ZPDUXrfEVdp2oVMA1nwS9q1nwOrFYy5hJ7S-SR-tYGr1uf9rddVlpjmYj9MnuNLEq2cFpJSGiB5Wjb-M'}
               />
               <div className="flex-1 text-center md:text-left">
-                <h4 className="text-3xl font-black text-on-background mb-1">Marcus Reed</h4>
-                <p className="text-primary font-bold tracking-wide uppercase text-xs">Lead Recovery Operator</p>
+                <h4 className="text-3xl font-black text-on-background mb-1">{hasAssignedDriver ? truck.assignedDriverName : 'Unassigned'}</h4>
+                <p className="text-primary font-bold tracking-wide uppercase text-xs">{truck.assignedDriverStatus ?? 'No active driver status'}</p>
                 <div className="grid grid-cols-2 gap-3 mt-5">
                   <div className="bg-surface-container-lowest p-4 rounded-lg border border-outline-variant/30">
                     <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Driver Rating</p>
