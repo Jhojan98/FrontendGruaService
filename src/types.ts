@@ -81,6 +81,76 @@ export interface Trip {
   towTruck: string;
   date: string;
   time: string;
+  driverId?: string | null;
+  driverName?: string | null;
+}
+
+export interface CreateTripPayload {
+  clientId: string;
+  clientName?: string;
+  originAddress: string;
+  destinationAddress: string;
+  distance?: string;
+}
+
+export interface TripStatusUpdatePayload {
+  status: string;
+}
+
+export interface TripAssignPayload {
+  towTruck: string;
+}
+
+export interface FleetTruck {
+  id: string;
+  unitNumber: string;
+  type: string;
+  status: 'Available' | 'On Trip' | 'Maintenance';
+  imageUrl?: string | null;
+  lat?: number;
+  lng?: number;
+  assignedDriverId?: string | null;
+  assignedDriverName?: string | null;
+  assignedDriverStatus?: 'Available' | 'On Trip' | 'Off Duty' | null;
+  assignedDriverImage?: string | null;
+}
+
+export interface FleetTruckCreatePayload {
+  unitNumber: string;
+  type: string;
+  status?: 'Available' | 'On Trip' | 'Maintenance';
+  lat?: number;
+  lng?: number;
+}
+
+export interface FleetTruckUpdatePayload {
+  unitNumber?: string;
+  type?: string;
+  status?: 'Available' | 'On Trip' | 'Maintenance';
+  lat?: number;
+  lng?: number;
+}
+
+export interface FleetTruckStatusUpdatePayload {
+  status: 'Available' | 'On Trip' | 'Maintenance';
+}
+
+export interface FleetTruckDriverAssignPayload {
+  driverId: string;
+}
+
+export interface DriverListItem {
+  id: string;
+  name: string;
+  role: string;
+  unit: string;
+  status: 'Available' | 'On Trip' | 'Off Duty';
+  shift: 'Morning' | 'Evening' | 'Night' | 'Rotating';
+  phone: string;
+  assignedTruckId?: string | null;
+  assignedTruckUnit?: string | null;
+  assignedTruckType?: string | null;
+  assignedTruckStatus?: string | null;
 }
 
 export interface DispatchFormData {

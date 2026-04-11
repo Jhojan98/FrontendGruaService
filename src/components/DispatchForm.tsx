@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import { Base, Client, ClientVehicle } from '../types';
 import { motion } from 'motion/react';
 import {
+  createTrip,
   createClient,
   DISPATCH_PREFILL_CLIENT_ID_STORAGE_KEY,
   listClients,
@@ -63,6 +64,8 @@ export const DispatchForm = () => {
   });
   const [manualVehicleFieldErrors, setManualVehicleFieldErrors] = useState<ManualVehicleFieldErrors>({});
   const [dispatchValidationError, setDispatchValidationError] = useState<string | null>(null);
+  const [originAddress, setOriginAddress] = useState('Main St. & 4th Ave, Portland, OR');
+  const [destinationAddress, setDestinationAddress] = useState('St. Jude Medical Center, OR');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -244,13 +247,37 @@ export const DispatchForm = () => {
       return;
     }
 
+    const normalizedOrigin = originAddress.trim();
+    const normalizedDestination = destinationAddress.trim();
+    if (!normalizedOrigin || !normalizedDestination) {
+      setDispatchValidationError('Origin and destination are required.');
+      return;
+    }
+
     setDispatchValidationError(null);
     setLoading(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 1500));
-    setLoading(false);
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+    try {
+      const tripDistance = vehicleType === 'manual' ? '0 km' : '0 km';
+      const clientId = selectedClient?.id;
+      if (!clientId) {
+        throw new Error('Client is required.');
+      }
+
+      await createTrip({
+        clientId,
+        clientName: selectedClient?.name,
+        originAddress: normalizedOrigin,
+        destinationAddress: normalizedDestination,
+        distance: tripDistance,
+      });
+
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (error) {
+      setDispatchValidationError(error instanceof Error ? error.message : 'Failed to create dispatch.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -507,14 +534,14 @@ export const DispatchForm = () => {
                   <Label>{t('origin_address', 'Origin Address')}</Label>
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 shadow-[0_0_0_2px_var(--color-surface),0_0_0_4px_rgba(74,124,89,0.1)]" />
-                    <Input defaultValue="Main St. & 4th Ave, Portland, OR" />
+                    <Input value={originAddress} onChange={(e) => setOriginAddress(e.target.value)} />
                   </div>
                 </div>
                 <div>
                   <Label>{t('destination_address', 'Destination Address')}</Label>
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-tertiary flex-shrink-0 shadow-[0_0_0_2px_var(--color-surface),0_0_0_4px_rgba(112,92,48,0.1)]" />
-                    <Input defaultValue="St. Jude Medical Center, OR" />
+                    <Input value={destinationAddress} onChange={(e) => setDestinationAddress(e.target.value)} />
                   </div>
                 </div>
               </div>

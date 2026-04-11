@@ -15,6 +15,15 @@ export function SimplifiedProfileMenu({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const imageSrc = (() => {
+    const value = user?.profile_image_url?.trim();
+    if (!value) return null;
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/') || value.startsWith('data:') || value.startsWith('blob:')) {
+      return value;
+    }
+    return null;
+  })();
+
   const displayName = user?.full_name ?? t('unknown_user', 'Unknown User');
   const displayEmail = user?.email ?? t('no_email', 'No email');
   const initials = displayName
@@ -42,11 +51,11 @@ export function SimplifiedProfileMenu({
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
-        {user?.profile_image_url ? (
+        {imageSrc ? (
           <img
             alt="User profile"
             className="w-full h-full object-cover"
-            src={user.profile_image_url}
+            src={imageSrc}
             referrerPolicy="no-referrer"
           />
         ) : (

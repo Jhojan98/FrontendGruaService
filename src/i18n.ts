@@ -449,6 +449,10 @@ const en = {
         "completed": "Completed",
         "details_title_prefix": "Reorganized Driver Details",
         "assigned_unit": "Assigned Unit",
+        "assigned_truck": "Assigned Truck",
+        "unassigned_truck": "No truck assigned",
+        "truck_status": "Truck status",
+        "assign_truck_hint": "Assign this driver to a truck from the edit form.",
         "availability": "Availability",
         "safety_score": "Safety Score",
         "certifications": "Certifications",
@@ -516,9 +520,26 @@ const en = {
         "compliance_ready_hint": "Profile is compliant and ready for dispatch scheduling.",
         "failed_create": "Failed to create driver",
         "failed_update": "Failed to update driver",
-        "failed_load_details": "Failed to load driver details"
+        "failed_load_details": "Failed to load driver details",
+        "confirm_delete_driver": "Delete driver?",
+        "deleting": "Deleting..."
     }
 ,
+    "fleet_details": {
+        "failed_load_drivers": "Failed to load drivers list.",
+        "select_driver_required": "Select a driver to assign.",
+        "no_available_drivers_now": "No available drivers right now.",
+        "failed_assign_driver": "Failed to assign driver.",
+        "no_truck_selected": "No truck selected.",
+        "no_available_drivers": "No available drivers",
+        "select_driver": "Select a driver...",
+        "assigned_to": "Assigned to",
+        "assigning": "Assigning...",
+        "assign": "Assign",
+        "confirm_delete_truck": "Delete truck?",
+        "delete_truck_warning": "This action cannot be undone.",
+        "deleting": "Deleting..."
+    },
     "edit_client": {
         "title": "Edit Client Profile",
         "breadcrumbs": {
@@ -1058,6 +1079,10 @@ const es = {
         "completed": "Completados",
         "details_title_prefix": "Detalle del Conductor",
         "assigned_unit": "Unidad Asignada",
+        "assigned_truck": "Camión Asignado",
+        "unassigned_truck": "Sin camión asignado",
+        "truck_status": "Estado del camión",
+        "assign_truck_hint": "Asigne este conductor a un camión desde el formulario de edición.",
         "availability": "Disponibilidad",
         "safety_score": "Puntaje de Seguridad",
         "certifications": "Certificaciones",
@@ -1125,9 +1150,26 @@ const es = {
         "compliance_ready_hint": "El perfil cumple requisitos y está listo para programación de despachos.",
         "failed_create": "No se pudo crear el conductor",
         "failed_update": "No se pudo actualizar el conductor",
-        "failed_load_details": "No se pudo cargar el detalle del conductor"
+        "failed_load_details": "No se pudo cargar el detalle del conductor",
+        "confirm_delete_driver": "¿Eliminar conductor?",
+        "deleting": "Eliminando..."
     }
 ,
+    "fleet_details": {
+        "failed_load_drivers": "No se pudo cargar la lista de conductores.",
+        "select_driver_required": "Seleccione un conductor para asignar.",
+        "no_available_drivers_now": "No hay conductores disponibles en este momento.",
+        "failed_assign_driver": "No se pudo asignar el conductor.",
+        "no_truck_selected": "No hay una grúa seleccionada.",
+        "no_available_drivers": "No hay conductores disponibles",
+        "select_driver": "Seleccione un conductor...",
+        "assigned_to": "Asignado a",
+        "assigning": "Asignando...",
+        "assign": "Asignar",
+        "confirm_delete_truck": "¿Eliminar grúa?",
+        "delete_truck_warning": "Esta acción no se puede deshacer.",
+        "deleting": "Eliminando..."
+    },
     "edit_client": {
         "title": "Editar Perfil de Cliente",
         "breadcrumbs": {
