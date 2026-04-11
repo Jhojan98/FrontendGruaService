@@ -19,23 +19,22 @@ import {
 import { cn } from '../../lib/utils';
 import { Trip } from '../../types';
 import { HistoryManagementProps } from './types';
-import { MOCK_TRIPS } from './tripsData';
 
-export const HistoryTripList: React.FC<HistoryManagementProps> = ({ onViewChange }) => {
+export const HistoryTripList: React.FC<HistoryManagementProps> = ({ onViewChange, onSelectTrip, trips = [] }) => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [openMenuTripId, setOpenMenuTripId] = useState<string | null>(null);
 
   const filteredTrips = useMemo(() => {
-    return MOCK_TRIPS.filter((trip) => {
+    return trips.filter((trip) => {
       const matchesSearch =
         trip.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         trip.id.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'All Statuses' || trip.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [searchQuery, statusFilter]);
+  }, [searchQuery, statusFilter, trips]);
 
   return (
     <div className="p-8 bg-surface overflow-y-auto h-full">
@@ -172,6 +171,7 @@ export const HistoryTripList: React.FC<HistoryManagementProps> = ({ onViewChange
                           <button
                             className="w-full px-3 py-2 text-sm font-semibold text-left rounded-lg hover:bg-surface-container-low flex items-center gap-2"
                             onClick={() => {
+                              onSelectTrip?.(trip.id);
                               setOpenMenuTripId(null);
                               onViewChange?.('history/trip-details');
                             }}
@@ -191,7 +191,7 @@ export const HistoryTripList: React.FC<HistoryManagementProps> = ({ onViewChange
 
         <div className="px-6 py-4 bg-surface-container-low border-t border-outline-variant/30 flex items-center justify-between">
           <p className="text-xs font-bold text-outline">
-            {t('showing', 'Showing')} <span className="text-on-surface">1 - {filteredTrips.length}</span> {t('of', 'of')} <span className="text-on-surface">128</span> {t('trips', 'trips')}
+            {t('showing', 'Showing')} <span className="text-on-surface">1 - {filteredTrips.length}</span> {t('of', 'of')} <span className="text-on-surface">{trips.length}</span> {t('trips', 'trips')}
           </p>
           <div className="flex items-center gap-2">
             <button className="px-4 py-2 text-xs font-bold text-outline hover:text-on-surface transition-colors flex items-center gap-1">

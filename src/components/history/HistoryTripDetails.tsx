@@ -2,7 +2,24 @@ import React from 'react';
 import { ArrowLeft, Info, Building2, Map, Route, Clock3, Milestone, Home, TriangleAlert, RotateCcw, Printer, Share2, User } from 'lucide-react';
 import { HistoryManagementProps } from './types';
 
-export const HistoryTripDetails: React.FC<HistoryManagementProps> = ({ onViewChange }) => {
+export const HistoryTripDetails: React.FC<HistoryManagementProps> = ({ onViewChange, selectedTripId, trips = [] }) => {
+  const selectedTrip = trips.find((trip) => trip.id === selectedTripId) ?? trips[0] ?? null;
+
+  if (!selectedTrip) {
+    return (
+      <div className="p-8 bg-surface overflow-y-auto h-full">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-3">
+            <button onClick={() => onViewChange?.('history')} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
+              <ArrowLeft className="w-5 h-5 text-on-surface" />
+            </button>
+            <p className="text-on-surface-variant">No trip selected.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 bg-surface overflow-y-auto h-full">
       <div className="max-w-7xl mx-auto">
@@ -12,8 +29,8 @@ export const HistoryTripDetails: React.FC<HistoryManagementProps> = ({ onViewCha
               <button onClick={() => onViewChange?.('history')} className="p-2 rounded-full hover:bg-surface-container-low transition-colors">
                 <ArrowLeft className="w-5 h-5 text-on-surface" />
               </button>
-              <h1 className="font-headline text-3xl font-bold text-on-background">Trip #TR-88219</h1>
-              <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full border border-primary/20">COMPLETED</span>
+              <h1 className="font-headline text-3xl font-bold text-on-background">Trip {selectedTrip.id}</h1>
+              <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full border border-primary/20">{selectedTrip.status.toUpperCase()}</span>
             </div>
           </div>
           <div className="flex gap-3">
@@ -100,10 +117,10 @@ export const HistoryTripDetails: React.FC<HistoryManagementProps> = ({ onViewCha
                     <div className="w-6 h-6 rounded-full overflow-hidden bg-surface-container flex items-center justify-center">
                       <User className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-bold text-on-background">Marcus Reed</span>
+                    <span className="font-bold text-on-background">{selectedTrip.driverName ?? 'Unassigned'}</span>
                   </div>
                 </div>
-                <InfoRow label="Truck" value="Unit-701" isLast />
+                <InfoRow label="Truck" value={selectedTrip.towTruck} isLast />
               </div>
             </section>
 
@@ -113,8 +130,8 @@ export const HistoryTripDetails: React.FC<HistoryManagementProps> = ({ onViewCha
                 <h3 className="font-headline font-bold text-lg">Client Information</h3>
               </div>
               <div className="bg-surface-container/50 p-4 rounded-xl border border-surface-variant/50">
-                <p className="font-bold text-on-background mb-1">Swift Logistics Inc.</p>
-                <p className="text-xs text-on-surface-variant font-mono">ID: SWIFT-99283-TL</p>
+                <p className="font-bold text-on-background mb-1">{selectedTrip.clientName}</p>
+                <p className="text-xs text-on-surface-variant font-mono">ID: {selectedTrip.clientId}</p>
                 <div className="mt-4 flex items-center gap-2 text-xs text-primary font-bold">
                   <Building2 className="w-4 h-4" />
                   Corporate Account
